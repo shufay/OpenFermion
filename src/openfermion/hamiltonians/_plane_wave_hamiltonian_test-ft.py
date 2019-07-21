@@ -35,9 +35,9 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                 for spinless in spinless_set:
                     grid = Grid(dimensions=1, scale=length_scale, length=l)
                     h_plane_wave = plane_wave_hamiltonian(
-                        grid, geometry, spinless, True, include_constant=False)
+                        grid, geometry, spinless, True, include_constant=False, ft=True)
                     h_dual_basis = plane_wave_hamiltonian(
-                        grid, geometry, spinless, False, include_constant=False)
+                        grid, geometry, spinless, False, include_constant=False, ft=True)
 
                     # Test for Hermiticity
                     plane_wave_operator = get_sparse_operator(h_plane_wave)
@@ -59,22 +59,22 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
 
     def test_plane_wave_hamiltonian_default_to_jellium_with_no_geometry(self):
         grid = Grid(dimensions=1, scale=1.0, length=4)
-        self.assertTrue(plane_wave_hamiltonian(grid) == jellium_model(grid))
+        self.assertTrue(plane_wave_hamiltonian(grid, ft=True) == jellium_model(grid, ft=True))
 
     def test_plane_wave_hamiltonian_bad_geometry(self):
         grid = Grid(dimensions=1, scale=1.0, length=4)
         with self.assertRaises(ValueError):
-            plane_wave_hamiltonian(grid, geometry=[('H', (0, 0, 0))])
+            plane_wave_hamiltonian(grid, geometry=[('H', (0, 0, 0))], ft=True)
 
         with self.assertRaises(ValueError):
             plane_wave_hamiltonian(grid, geometry=[('H', (0, 0, 0))],
-                                   include_constant=True)
+                                   include_constant=True, ft=True)
 
     def test_plane_wave_hamiltonian_bad_element(self):
-        grid = Grid(dimensions=3, scale=1.0, length=4)
+        grid = Grid(dimensions=3, scale=1.0, length=2)
         with self.assertRaises(ValueError):
             plane_wave_hamiltonian(grid, geometry=[('Unobtainium',
-                                                    (0, 0, 0))])
+                                                    (0, 0, 0))], ft=True)
 
     def test_jordan_wigner_dual_basis_hamiltonian(self):
         grid = Grid(dimensions=2, length=3, scale=1.)
@@ -82,7 +82,7 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
         geometry = [('H', (0, 0)), ('H', (0.5, 0.8))]
         for spinless in spinless_set:
             fermion_hamiltonian = plane_wave_hamiltonian(
-                grid, geometry, spinless, False, include_constant=False)
+                grid, geometry, spinless, False, include_constant=False, ft=True)
             qubit_hamiltonian = jordan_wigner(fermion_hamiltonian)
 
             test_hamiltonian = jordan_wigner_dual_basis_hamiltonian(
@@ -92,7 +92,7 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
     def test_jordan_wigner_dual_basis_hamiltonian_default_to_jellium(self):
         grid = Grid(dimensions=1, scale=1.0, length=4)
         self.assertTrue(jordan_wigner_dual_basis_hamiltonian(grid) ==
-                        jordan_wigner(jellium_model(grid, plane_wave=False)))
+                        jordan_wigner(jellium_model(grid, plane_wave=False, ft=True)))
 
     def test_jordan_wigner_dual_basis_hamiltonian_bad_geometry(self):
         grid = Grid(dimensions=1, scale=1.0, length=4)
@@ -115,12 +115,12 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
         grid = Grid(dimensions=1, scale=1.1, length=5)
         e_cutoff = 50.0
 
-        h_1 = plane_wave_hamiltonian(grid, geometry, True, True, False)
+        h_1 = plane_wave_hamiltonian(grid, geometry, True, True, False, ft=True)
         jw_1 = jordan_wigner(h_1)
         spectrum_1 = eigenspectrum(jw_1)
 
         h_2 = plane_wave_hamiltonian(grid, geometry, True, True, False,
-                                     e_cutoff)
+                                     e_cutoff, ft=True)
         jw_2 = jordan_wigner(h_2)
         spectrum_2 = eigenspectrum(jw_2)
 

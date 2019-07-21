@@ -138,10 +138,35 @@ class Grid:
                 'Position indices must be integers in [0, grid_length).')
 
         # Compute position vector
+        #print('edited Grid\n')
+        
+        # Can't have self.length[i] == 1.
         vector = sum([(float(n - self.shifts[i]) /
                        self.length[i]) * self.scale[:, i]
                       for i, n in enumerate(position_indices)])
+        '''
+        vector = 0.
+        
+        for i, n in enumerate(position_indices):
+            pos_vec = 0.
+            
+            if self.length[i] == 1:
+                pos_vec = (float(n - self.shifts[i]) /
+                           self.length[i]) * self.scale[:, i]
+            
+            else:
+                pos_vec = (float(n - self.shifts[i]) /
+                           (self.length[i] - 1)) * self.scale[:, i]
+            
+            vector += pos_vec
+        '''
+                
+        '''
+        print('vector: {}\n'.format(vector))
+        print()
+        '''
         return vector
+    
 
     def momentum_vector(self, momentum_indices, periodic=True):
         """Given grid point coordinate, return momentum vector with dimensions.

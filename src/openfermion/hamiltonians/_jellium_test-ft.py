@@ -182,7 +182,7 @@ class JelliumTest(unittest.TestCase):
             for spinless in spinless_set:
                 grid = Grid(dimensions=2, length=length, scale=2.)
 
-                momentum_potential = plane_wave_potential(grid, spinless)
+                momentum_potential = plane_wave_potential_v2(grid, spinless)
                 position_potential = dual_basis_potential(grid, spinless)
 
                 # Confirm they are Hermitian
@@ -212,8 +212,8 @@ class JelliumTest(unittest.TestCase):
         for length in [2]:
             for spinless in spinless_set:
                 grid = Grid(dimensions=2, length=length, scale=1.0)
-                momentum_hamiltonian = jellium_model(grid, spinless, True)
-                position_hamiltonian = jellium_model(grid, spinless, False)
+                momentum_hamiltonian = jellium_model(grid, spinless, True, ft=True)
+                position_hamiltonian = jellium_model(grid, spinless, False, ft=True)
 
                 # Confirm they are Hermitian
                 momentum_hamiltonian_operator = (
@@ -247,8 +247,8 @@ class JelliumTest(unittest.TestCase):
                 # Include Madelung constant in the momentum but not the position
                 # Hamiltonian.
                 momentum_hamiltonian = jellium_model(grid, spinless, True,
-                                                     include_constant=True)
-                position_hamiltonian = jellium_model(grid, spinless, False)
+                                                     include_constant=True, ft=True)
+                position_hamiltonian = jellium_model(grid, spinless, False, ft=True)
 
                 # Confirm they are Hermitian
                 momentum_hamiltonian_operator = (
@@ -424,11 +424,11 @@ class JelliumTest(unittest.TestCase):
         e_cutoff = 20.0
 
         for spinless in spinless_set:
-            hamiltonian_1 = jellium_model(grid, spinless, True, False)
+            hamiltonian_1 = jellium_model(grid, spinless, True, False, ft=True)
             jw_1 = jordan_wigner(hamiltonian_1)
             spectrum_1 = eigenspectrum(jw_1)
 
-            hamiltonian_2 = jellium_model(grid, spinless, True, False, e_cutoff)
+            hamiltonian_2 = jellium_model(grid, spinless, True, False, e_cutoff, ft=True)
             jw_2 = jordan_wigner(hamiltonian_2)
             spectrum_2 = eigenspectrum(jw_2)
 
@@ -449,12 +449,12 @@ class JelliumTest(unittest.TestCase):
         # min period cutoff is scale * [( length - 1 )/length] * [1/( length - 1 )] == [ scale/length ]
         period_cutoff = grid.volume_scale() ** (1. / grid.dimensions) / 2.
 
-        hamiltonian_1 = jellium_model(grid, spinless=spinless, plane_wave=True, include_constant=False)
+        hamiltonian_1 = jellium_model(grid, spinless=spinless, plane_wave=True, include_constant=False, ft=True)
         jw_1 = jordan_wigner(hamiltonian_1)
         spectrum_1 = eigenspectrum(jw_1)
 
         hamiltonian_2 = jellium_model(grid, spinless=spinless, plane_wave=True, include_constant=False, e_cutoff=None, 
-                                      non_periodic=True, period_cutoff=period_cutoff)
+                                      non_periodic=True, period_cutoff=period_cutoff, ft=True)
         
         jw_2 = jordan_wigner(hamiltonian_2)
         spectrum_2 = eigenspectrum(jw_2)
@@ -467,9 +467,9 @@ class JelliumTest(unittest.TestCase):
         # TODO: This is only for code coverage. Remove after having real
         #     integration test.
         momentum_hamiltonian = jellium_model(grid, spinless=spinless, plane_wave=True, include_constant=False, 
-                                             e_cutoff=None, non_periodic=True, ft=True, period_cutoff=period_cutoff)
+                                             e_cutoff=None, non_periodic=True, period_cutoff=period_cutoff, ft=True)
         position_hamiltonian = jellium_model(grid, spinless=spinless, plane_wave=False, include_constant=False, 
-                                             e_cutoff=None, non_periodic=True, ft=True, period_cutoff=period_cutoff)
+                                             e_cutoff=None, non_periodic=True, period_cutoff=period_cutoff, ft=True)
         
         # Confirm they are Hermitian
         momentum_hamiltonian_operator = (

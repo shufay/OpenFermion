@@ -21,7 +21,7 @@ from ._jellium import (
     dual_basis_jellium_model, jellium_model,
     jordan_wigner_dual_basis_jellium,
     hypercube_grid_with_given_wigner_seitz_radius_and_filling,
-    plane_wave_kinetic, plane_wave_potential,
+    plane_wave_kinetic, plane_wave_potential, plane_wave_potential_v2,
     wigner_seitz_length_scale)
 
 from ._molecular_data import (
@@ -29,8 +29,10 @@ from ._molecular_data import (
         load_molecular_hamiltonian,
         periodic_table)
 
-from ._plane_wave_hamiltonian import (dual_basis_external_potential,
+from ._plane_wave_hamiltonian import (center,
+                                      dual_basis_external_potential,
                                       plane_wave_external_potential,
+                                      plane_wave_external_potential_v2,
                                       plane_wave_hamiltonian,
                                       jordan_wigner_dual_basis_hamiltonian)
 

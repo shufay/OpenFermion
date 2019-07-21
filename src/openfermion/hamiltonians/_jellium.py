@@ -17,6 +17,7 @@ import numpy
 
 from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.utils._grid import Grid
+import openfermion.utils._operator_utils
 
 
 def wigner_seitz_length_scale(wigner_seitz_radius, n_particles, dimension):
@@ -88,6 +89,46 @@ def plane_wave_kinetic(grid, spinless=False, e_cutoff=None):
     return operator
 
 
+def plane_wave_potential_v2(grid, spinless=False, e_cutoff=None,
+                            non_periodic=False, period_cutoff=None, verbose=False):
+    """Return the e-e potential operator in the plane wave basis. 
+       My version: take Fourier transform of dual basis potential.
+
+    Args:
+        grid (Grid): The discretization to use.
+        spinless (bool): Whether to use the spinless model or not.
+        e_cutoff (float): Energy cutoff.
+        non_periodic (bool): If the system is non-periodic, default to False.
+        period_cutoff (float): Period cutoff, default to
+            grid.volume_scale() ** (1. / grid.dimensions).
+        verbose (bool): Whether to turn on print statements.  
+
+    Returns:
+        operator (FermionOperator)
+    """
+    dual_basis_operator = dual_basis_potential(grid, spinless, non_periodic, period_cutoff)
+    operator = openfermion.utils.inverse_fourier_transform(dual_basis_operator, grid, spinless)
+    
+    normal_ordered_dual_basis_operator = openfermion.normal_ordered(dual_basis_operator)
+    normal_ordered_operator = openfermion.normal_ordered(operator)
+    
+    if verbose:
+        print('Fourier transform version.')
+        print('Dual basis potential Hamiltonian:')
+        print('qubits: {}'.format(openfermion.count_qubits(dual_basis_operator)))
+        print('qubits (normal ordered): {}'.format(openfermion.count_qubits(normal_ordered_dual_basis_operator)))
+        #print(normal_ordered_dual_basis_operator)
+        print()
+
+        print('Plane wave potential Hamiltonian:')
+        print('qubits: {}'.format(openfermion.count_qubits(operator)))
+        print('qubits (normal ordered): {}'.format(openfermion.count_qubits(normal_ordered_operator)))
+        #print(openfermion.normal_ordered(operator))
+        print()
+        
+    return operator
+
+
 def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                          non_periodic=False, period_cutoff=None):
     """Return the e-e potential operator in the plane wave basis.
@@ -150,6 +191,8 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
 
         # Compute coefficient.
         coefficient = prefactor / momenta_squared
+        
+        # If non-periodic.
         if non_periodic:
             coefficient *= 1.0 - numpy.cos(
                     period_cutoff * numpy.sqrt(momenta_squared))
@@ -176,6 +219,13 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                                          (orbital_c, 0), (orbital_d, 0))
                             operator += FermionOperator(operators, coefficient)
 
+    '''
+    normal_ordered_operator = openfermion.normal_ordered(operator)
+    print('Plane wave basis potential operator:')
+    print('qubits: {}\n'.format(openfermion.count_qubits(normal_ordered_operator)))
+    #print(operator)
+    print()
+    '''
     # Return.
     return operator
 
@@ -183,7 +233,7 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
 def dual_basis_jellium_model(grid, spinless=False,
                              kinetic=True, potential=True,
                              include_constant=False,
-                             non_periodic=False, period_cutoff=None):
+                             non_periodic=False, period_cutoff=None, verbose=False):
     """Return jellium Hamiltonian in the dual basis of arXiv:1706.00023
 
     Args:
@@ -197,6 +247,7 @@ def dual_basis_jellium_model(grid, spinless=False,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
+        verbose (bool): Whether to turn on print statements.  
 
     Returns:
         operator (FermionOperator)
@@ -206,6 +257,11 @@ def dual_basis_jellium_model(grid, spinless=False,
     position_prefactor = 2.0 * numpy.pi / grid.volume_scale()
     operator = FermionOperator()
     spins = [None] if spinless else [0, 1]
+    potential_og = potential
+    
+    if verbose:
+        print('Original potential = {}\n'.format(potential_og))
+    
     if potential and non_periodic and period_cutoff is None:
         period_cutoff = grid.volume_scale() ** (1.0 / grid.dimensions)
 
@@ -214,73 +270,172 @@ def dual_basis_jellium_model(grid, spinless=False,
     momentum_vectors = {}
     momenta_squared_dict = {}
     orbital_ids = {}
+    
     for indices in grid.all_points_indices():
+        # Store position vectors in dictionary, with corresponding grid index as key.
         position_vectors[indices] = grid.position_vector(indices)
+        
+        # Get and store momentum vectors in dictionary, with corresponding grid index
+        # as key.
         momenta = grid.momentum_vector(indices)
         momentum_vectors[indices] = momenta
+        
+        # Store momentum squared in dictionary, with corresponding grid index as key.
         momenta_squared_dict[indices] = momenta.dot(momenta)
+        
+        # Store spin orbitals at each grid index in dictionary.
         orbital_ids[indices] = {}
+        
         for spin in spins:
             orbital_ids[indices][spin] = grid.orbital_id(indices, spin)
 
-    # Loop once through all lattice sites.
+    # This gives the position vector of the grid point at bottom-left-most corner. 
+    #
+    #                x---x---x
+    #                |   |   |
+    #                x---x---x
+    #                |   |   |
+    # this point <-- x---x---x
+    #
     grid_origin = (0, ) * grid.dimensions
     coordinates_origin = position_vectors[grid_origin]
+        
+    # Loop once through all grid points.
     for grid_indices_b in grid.all_points_indices():
+        if verbose:
+            print('Grid point: {}\n'.format(grid_indices_b))
+        
+        # For all grid points, 'differences' gets the position displacement from the 
+        # 'origin' point. This corresponds to evaluating (r_p - r_q) == r_(p-q).
         coordinates_b = position_vectors[grid_indices_b]
         differences = coordinates_b - coordinates_origin
+        
+        # If non_periodic.
+        # See paper Appendix E.2. This is not setting function at boundary to 0.
+        # Just accounting for Fourier Transform with truncated Coulomb operator.
+        '''
+        # First naive implementation.
+        if non_periodic:
+            potential_coefficient *= 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+        '''    
+
+        # According to paper, in the dual basis the truncated Coulomb operator can be implemented by 
+        # dropping all n_p * n_q terms for which |r_p - r_q| > D.
+        
+        if non_periodic:
+            if verbose:
+                print('non_periodic')
+
+            if numpy.sqrt(differences.dot(differences)) > period_cutoff:
+                if verbose:
+                    print('e-e potential distances larger than cutoff.')
+                    print('coordinates b: {}'.format(coordinates_b))
+                    print('coordinates origin: {}'.format(coordinates_origin))
+                    print('differences: {}'.format(differences))
+                    print('Potential set to False.\n')
+                
+                # Set potential option to False. This drops the potential terms where |r_p - r_q| > D.
+                potential = False
 
         # Compute coefficients.
         kinetic_coefficient = 0.
         potential_coefficient = 0.
+        
+        # Loop once through all momentum indices, k_nu.
         for momenta_indices in grid.all_points_indices():
             momenta = momentum_vectors[momenta_indices]
             momenta_squared = momenta_squared_dict[momenta_indices]
+            
             if momenta_squared == 0:
                 continue
 
             cos_difference = numpy.cos(momenta.dot(differences))
+            
+            # This computes 1/(2N) * sum_nu{ k_nu^2 * cos[k_nu * r_(q-p)] }
             if kinetic:
+                if verbose:
+                    print('Added kinetic term.')
+                
                 kinetic_coefficient += (
                     cos_difference * momenta_squared /
                     (2. * float(n_points)))
-            if potential:
+            
+            if verbose:
+                print('Potential = {}'.format(potential))
+                
+            # This computes 2pi/Omega * sum_nu{ cos[k_nu * r_(p-q)] / k_nu^2 }
+            if potential: 
                 potential_coefficient += (
                     position_prefactor * cos_difference / momenta_squared)
+        
+        if verbose:
+            print('kinetic coefficient: {}'.format(kinetic_coefficient))
+            print('potential coefficient: {}\n'.format(potential_coefficient))
+        
+        # Loop once through all grid points. 
+        # We have r_p - r_q fixed by 'differences' computed above. 
         for grid_indices_shift in grid.all_points_indices():
             # Loop over spins and identify interacting orbitals.
             orbital_a = {}
             orbital_b = {}
+            
+            # grid_origin = (0, ) * grid.dimensions
+            # 'shifted_index_1' is equivalent to just 'grid_indices_shift'.
             shifted_index_1 = tuple(
                 [(grid_origin[i] + grid_indices_shift[i]) % grid.length[i]
                  for i in range(grid.dimensions)])
+            
+            # 'shifted_index_2' 
             shifted_index_2 = tuple(
                 [(grid_indices_b[i] + grid_indices_shift[i]) % grid.length[i]
                  for i in range(grid.dimensions)])
-
+            
+            if verbose:
+                print('shifted index 1: {}'.format(shifted_index_1))
+                print('shifted index 2: {}'.format(shifted_index_2))
+            
             for spin in spins:
                 orbital_a[spin] = orbital_ids[shifted_index_1][spin]
                 orbital_b[spin] = orbital_ids[shifted_index_2][spin]
+                
             if kinetic:
                 for spin in spins:
                     operators = ((orbital_a[spin], 1), (orbital_b[spin], 0))
                     operator += FermionOperator(operators, kinetic_coefficient)
+                     
+            # If non_periodic, potential will also evaluate to False, so this part is skipped,
+            # i.e. no potential terms will be added. 
             if potential:
                 for sa in spins:
                     for sb in spins:
                         if orbital_a[sa] == orbital_b[sb]:
                             continue
+                            
                         operators = ((orbital_a[sa], 1), (orbital_a[sa], 0),
                                      (orbital_b[sb], 1), (orbital_b[sb], 0))
                         operator += FermionOperator(operators,
                                                     potential_coefficient)
+        
+        # Reset potential.
+        potential = potential_og
+        
+        if non_periodic and verbose:
+            print('\nPotential reset to {}.\n'.format(potential))
 
+        
     # Include the Madelung constant if requested.
     if include_constant:
         # TODO: Check for other unit cell shapes
         operator += (FermionOperator.identity() *
                      (2.8372 / grid.volume_scale()**(1./grid.dimensions)))
-
+    
+    '''
+    normal_ordered_operator = openfermion.normal_ordered(operator)
+    print('Dual basis jellium operator:')
+    print('qubits: {}\n'.format(openfermion.count_qubits(normal_ordered_operator)))
+    #print(operator)
+    print()
+    '''
     # Return.
     return operator
 
@@ -299,7 +454,7 @@ def dual_basis_kinetic(grid, spinless=False):
 
 
 def dual_basis_potential(grid, spinless=False, non_periodic=False,
-                         period_cutoff=None):
+                         period_cutoff=None, verbose=False):
     """Return the potential operator in the dual basis of arXiv:1706.00023
 
     Args:
@@ -308,17 +463,28 @@ def dual_basis_potential(grid, spinless=False, non_periodic=False,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
+        verbose (bool): Whether to turn on print statements.  
 
     Returns:
         operator (FermionOperator)
     """
-    return dual_basis_jellium_model(grid, spinless, False, True, False,
-                                    non_periodic, period_cutoff)
+    operator = dual_basis_jellium_model(grid, spinless, False, True, False,
+                                    non_periodic, period_cutoff, verbose)
+    
+    '''
+    normal_ordered_op = openfermion.normal_ordered(operator)
+    print('Dual basis potential:')
+    print('qubits: {}'.format(openfermion.count_qubits(normal_ordered_op)))
+    #print(normal_ordered_op)
+    '''
+    
+    return operator
 
 
 def jellium_model(grid, spinless=False, plane_wave=True,
                   include_constant=False, e_cutoff=None,
-                  non_periodic=False, period_cutoff=None):
+                  non_periodic=False, period_cutoff=None, 
+                  ft=False, verbose=False):
     """Return jellium Hamiltonian as FermionOperator class.
 
     Args:
@@ -333,18 +499,29 @@ def jellium_model(grid, spinless=False, plane_wave=True,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
+        ft (bool): Whether to use the Fourier Transform of the dual basis
+                   potentials as the plane wave potentials.
+        verbose (bool): Whether to turn on print statements.
 
     Returns:
         FermionOperator: The Hamiltonian of the model.
     """
     if plane_wave:
         hamiltonian = plane_wave_kinetic(grid, spinless, e_cutoff)
-        hamiltonian += plane_wave_potential(grid, spinless, e_cutoff,
-                                            non_periodic, period_cutoff)
+        
+        # Use FT of dual basis potential. 
+        if ft:
+            hamiltonian += plane_wave_potential_v2(grid, spinless, e_cutoff,
+                                                   non_periodic, period_cutoff, verbose)
+        else:
+            hamiltonian += plane_wave_potential(grid, spinless, e_cutoff,
+                                                non_periodic, period_cutoff)
+    
     else:
         hamiltonian = dual_basis_jellium_model(grid, spinless, True, True,
                                                include_constant, non_periodic,
-                                               period_cutoff)
+                                               period_cutoff, verbose)
+        
     # Include the Madelung constant if requested.
     if include_constant:
         # TODO: Check for other unit cell shapes

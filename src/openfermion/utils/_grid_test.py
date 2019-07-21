@@ -49,13 +49,25 @@ class GridTest(unittest.TestCase):
     def test_position_vector(self):
 
         # Test in 1D.
+        # Originally scale = 4.
         grid = Grid(dimensions=1, length=4, scale=4.)
         test_output = [grid.position_vector(i)[0]
                        for i in range(grid.length[0])]
         correct_output = [-2, -1, 0, 1]
+        
+        '''
+        # My tests -- I think the position scale in each dimension should
+        # equal the scale we set in the first place.
+        test_output_min = min(test_output)
+        test_output_max = max(test_output)
+        test_output_scale = test_output_max - test_output_min
+        
         self.assertEqual(correct_output, test_output)
-
+        self.assertEqual(grid.scale[0][0], test_output_scale)
+        '''
+        
         # Test in 2D.
+        # Originally scale = 3.
         grid = Grid(dimensions=2, length=3, scale=3.)
         test_input = []
         test_output = []
