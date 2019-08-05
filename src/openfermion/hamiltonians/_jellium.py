@@ -13,7 +13,7 @@
 """This module constructs Hamiltonians for the uniform electron gas."""
 from __future__ import absolute_import
 
-import numpy
+import numpy, mpmath
 
 from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.utils._grid import Grid
@@ -130,7 +130,8 @@ def plane_wave_potential_v2(grid, spinless=False, e_cutoff=None,
 
 
 def plane_wave_potential(grid, spinless=False, e_cutoff=None,
-                         non_periodic=False, period_cutoff=None):
+                         non_periodic=False, period_cutoff=None,
+                         fieldlines=3, verbose=False):
     """Return the e-e potential operator in the plane wave basis.
 
     Args:
@@ -140,14 +141,26 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
+        fieldlines (int): Spatial dimension for electric field lines. 
+        verbose (bool): Whether to turn on print statements.  
 
     Returns:
         operator (FermionOperator)
     """
     # Initialize.
-    prefactor = 2. * numpy.pi / grid.volume_scale()
+    prefactor = 0.
+    
+    # 3D case.
+    if grid.dimensions == 3:
+        prefactor = 2. * numpy.pi / grid.volume_scale()
+    
+    # 2D case.
+    elif grid.dimensions == 2:
+        prefactor = 1. / (2. * grid.volume_scale())
+        
     operator = FermionOperator((), 0.0)
     spins = [None] if spinless else [0, 1]
+    
     if non_periodic and period_cutoff is None:
         period_cutoff = grid.volume_scale() ** (1. / grid.dimensions)
 
@@ -190,13 +203,54 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
             continue
 
         # Compute coefficient.
-        coefficient = prefactor / momenta_squared
+        coefficient = 0.
         
-        # If non-periodic.
-        if non_periodic:
-            coefficient *= 1.0 - numpy.cos(
-                    period_cutoff * numpy.sqrt(momenta_squared))
+        # 3D case.
+        if grid.dimensions == 3:    
+            coefficient = prefactor / momenta_squared
+            
+            # If non-periodic.
+            if non_periodic:
+                coefficient *= 1.0 - numpy.cos(
+                        period_cutoff * numpy.sqrt(momenta_squared))
+        
+        # 2D case.
+        elif grid.dimensions == 2:
+            V_nu = 0.
+            
+            if fieldlines == 2:
+                if non_periodic:
+                    print('non-periodic')
+                    print('cutoff: {}\n'.format(period_cutoff))
+                    pass
+                    
+                else:
+                    var1 = 0.25 * momenta_squared
+                    var2 = 4. / momenta_squared
 
+                    V_nu = numpy.complex128(1. / 2. * 
+                            (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
+                             mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+
+            elif fieldlines == 3:
+                if non_periodic:
+                    print('non-periodic')
+                    print('cutoff: {}\n'.format(period_cutoff))
+                    var = -0.25 * period_cutoff**2 * momenta_squared
+                    V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                    
+                else:
+                    V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+                
+            coefficient = prefactor * V_nu
+            
+            if verbose:
+                print('fieldlines = {}'.format(fieldlines))
+                print('prefactor: {}'.format(prefactor))
+                print('V_nu: {}'.format(V_nu))
+                print('coefficient: {}\n'.format(coefficient))
+                
+                
         for grid_indices_a in grid.all_points_indices():
             shifted_indices_d = (
                 shifted_indices_minus_dict[omega_indices][grid_indices_a])
@@ -233,7 +287,8 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
 def dual_basis_jellium_model(grid, spinless=False,
                              kinetic=True, potential=True,
                              include_constant=False,
-                             non_periodic=False, period_cutoff=None, verbose=False):
+                             non_periodic=False, period_cutoff=None, 
+                             fieldlines=3, verbose=False):
     """Return jellium Hamiltonian in the dual basis of arXiv:1706.00023
 
     Args:
@@ -247,6 +302,7 @@ def dual_basis_jellium_model(grid, spinless=False,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
+        fieldlines (int): Spatial dimension for electric field lines. 
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
@@ -254,13 +310,26 @@ def dual_basis_jellium_model(grid, spinless=False,
     """
     # Initialize.
     n_points = grid.num_points
-    position_prefactor = 2.0 * numpy.pi / grid.volume_scale()
+    position_prefactor = 0.
+    
+    # 3D case.
+    if grid.dimensions == 3:
+        position_prefactor = 2.0 * numpy.pi / grid.volume_scale()
+    
+    # 2D case.
+    elif grid.dimensions == 2:
+        position_prefactor = 1. / (2. * grid.volume_scale())
+        
+    
     operator = FermionOperator()
     spins = [None] if spinless else [0, 1]
+    
+    '''            
     potential_og = potential
     
     if verbose:
         print('Original potential = {}\n'.format(potential_og))
+    '''            
     
     if potential and non_periodic and period_cutoff is None:
         period_cutoff = grid.volume_scale() ** (1.0 / grid.dimensions)
@@ -313,12 +382,8 @@ def dual_basis_jellium_model(grid, spinless=False,
         # If non_periodic.
         # See paper Appendix E.2. This is not setting function at boundary to 0.
         # Just accounting for Fourier Transform with truncated Coulomb operator.
+                
         '''
-        # First naive implementation.
-        if non_periodic:
-            potential_coefficient *= 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
-        '''    
-
         # According to paper, in the dual basis the truncated Coulomb operator can be implemented by 
         # dropping all n_p * n_q terms for which |r_p - r_q| > D.
         
@@ -336,7 +401,9 @@ def dual_basis_jellium_model(grid, spinless=False,
                 
                 # Set potential option to False. This drops the potential terms where |r_p - r_q| > D.
                 potential = False
-
+        '''
+        
+        
         # Compute coefficients.
         kinetic_coefficient = 0.
         potential_coefficient = 0.
@@ -365,8 +432,66 @@ def dual_basis_jellium_model(grid, spinless=False,
                 
             # This computes 2pi/Omega * sum_nu{ cos[k_nu * r_(p-q)] / k_nu^2 }
             if potential: 
-                potential_coefficient += (
-                    position_prefactor * cos_difference / momenta_squared)
+                
+                # 3D case.
+                if grid.dimensions == 3:
+                    
+                    # Potential coefficient for this value of nu.
+                    potential_coefficient_nu = position_prefactor * cos_difference / momenta_squared
+                    
+                    # First naive implementation.
+                    if non_periodic:
+                        correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                        potential_coefficient_nu *= correction
+
+                        if verbose:
+                            print('non_periodic')
+                            print('cutoff: {}'.format(period_cutoff))
+                            print('correction: {}\n'.format(correction))
+                    
+                    potential_coefficient += potential_coefficient_nu
+                            
+                
+                # 2D case.
+                elif grid.dimensions == 2:
+                    V_nu = 0.
+
+                    if fieldlines == 2:
+                        if non_periodic:
+                            if verbose:
+                                print('non-periodic')
+                                print('cutoff: {}\n'.format(period_cutoff))
+                        
+                        else:
+                            var1 = 0.25 * momenta_squared
+                            var2 = 4. / momenta_squared
+
+                            V_nu = numpy.complex128(1. / 2. * 
+                                    (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
+                                     mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+                            
+                    elif fieldlines == 3:
+                        if non_periodic:
+                            if verbose:
+                                print('non-periodic')
+                                print('cutoff: {}\n'.format(period_cutoff))
+                                
+                            var = -0.25 * period_cutoff**2 * momenta_squared
+                            V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                        
+                        else:    
+                            V_nu = 2. * numpy.pi / numpy.sqrt(momenta_squared)
+                            
+                    # Potential coefficient for this value of nu.
+                    potential_coefficient_nu = position_prefactor * V_nu * cos_difference
+                    potential_coefficient += potential_coefficient_nu
+                    
+                    if verbose:
+                        print('fieldlines = {}'.format(fieldlines))
+                        print('position prefactor: {}'.format(position_prefactor))
+                        print('V_nu: {}'.format(V_nu))
+                        print('potential coefficient nu: {}\n'.format(potential_coefficient_nu))
+                        
         
         if verbose:
             print('kinetic coefficient: {}'.format(kinetic_coefficient))
@@ -403,8 +528,10 @@ def dual_basis_jellium_model(grid, spinless=False,
                     operators = ((orbital_a[spin], 1), (orbital_b[spin], 0))
                     operator += FermionOperator(operators, kinetic_coefficient)
                      
+            '''
             # If non_periodic, potential will also evaluate to False, so this part is skipped,
             # i.e. no potential terms will be added. 
+            '''            
             if potential:
                 for sa in spins:
                     for sb in spins:
@@ -416,16 +543,19 @@ def dual_basis_jellium_model(grid, spinless=False,
                         operator += FermionOperator(operators,
                                                     potential_coefficient)
         
+        '''            
         # Reset potential.
         potential = potential_og
         
         if non_periodic and verbose:
             print('\nPotential reset to {}.\n'.format(potential))
-
+        '''            
         
     # Include the Madelung constant if requested.
     if include_constant:
+        
         # TODO: Check for other unit cell shapes
+        # Currently only for cubic cells.
         operator += (FermionOperator.identity() *
                      (2.8372 / grid.volume_scale()**(1./grid.dimensions)))
     
@@ -454,7 +584,7 @@ def dual_basis_kinetic(grid, spinless=False):
 
 
 def dual_basis_potential(grid, spinless=False, non_periodic=False,
-                         period_cutoff=None, verbose=False):
+                         period_cutoff=None, fieldlines=3, verbose=False):
     """Return the potential operator in the dual basis of arXiv:1706.00023
 
     Args:
@@ -463,13 +593,14 @@ def dual_basis_potential(grid, spinless=False, non_periodic=False,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
+        fieldlines (int): Spatial dimension for electric field lines. 
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
         operator (FermionOperator)
     """
     operator = dual_basis_jellium_model(grid, spinless, False, True, False,
-                                    non_periodic, period_cutoff, verbose)
+                                    non_periodic, period_cutoff, fieldlines, verbose)
     
     '''
     normal_ordered_op = openfermion.normal_ordered(operator)
@@ -484,7 +615,7 @@ def dual_basis_potential(grid, spinless=False, non_periodic=False,
 def jellium_model(grid, spinless=False, plane_wave=True,
                   include_constant=False, e_cutoff=None,
                   non_periodic=False, period_cutoff=None, 
-                  ft=False, verbose=False):
+                  ft=False, fieldlines=3, verbose=False):
     """Return jellium Hamiltonian as FermionOperator class.
 
     Args:
@@ -501,6 +632,7 @@ def jellium_model(grid, spinless=False, plane_wave=True,
             grid.volume_scale() ** (1. / grid.dimensions).
         ft (bool): Whether to use the Fourier Transform of the dual basis
                    potentials as the plane wave potentials.
+        fieldlines (int): Spatial dimension for electric field lines. 
         verbose (bool): Whether to turn on print statements.
 
     Returns:
@@ -515,12 +647,12 @@ def jellium_model(grid, spinless=False, plane_wave=True,
                                                    non_periodic, period_cutoff, verbose)
         else:
             hamiltonian += plane_wave_potential(grid, spinless, e_cutoff,
-                                                non_periodic, period_cutoff)
+                                                non_periodic, period_cutoff, fieldlines, verbose)
     
     else:
         hamiltonian = dual_basis_jellium_model(grid, spinless, True, True,
                                                include_constant, non_periodic,
-                                               period_cutoff, verbose)
+                                               period_cutoff, fieldlines, verbose)
         
     # Include the Madelung constant if requested.
     if include_constant:

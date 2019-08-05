@@ -22,7 +22,13 @@ from openfermion.ops import FermionOperator, QubitOperator
 def center(grid, geometry, verbose=False):
     """
     Centers the molecule in the supercell.
-
+    *Currently, the centering can be done in 
+        1. 1D, 2D, and 3D for diatomic molecules in the xy-plane;
+        2. 3D for polyatomic molecules with any orientation. 
+    
+    TODO: Think about projection from 3D to 2D for molecules like H2O,
+          or from 3D/2D to 1D for diatomic molecules in any plane.
+    
     Args:
         grid (Grid): The discretization to use. 
         geometry (list[tuple]): A list of tuples giving the coordinates of each atom.
@@ -78,7 +84,7 @@ def center(grid, geometry, verbose=False):
 
 
 def dual_basis_external_potential(grid, geometry, spinless,
-                                  non_periodic=False, period_cutoff=None, verbose=False):
+                                  non_periodic=False, period_cutoff=None, fieldlines=3, verbose=False):
     """Return the external potential in the dual basis of arXiv:1706.00023.
 
     The external potential resulting from electrons interacting with nuclei
@@ -91,19 +97,31 @@ def dual_basis_external_potential(grid, geometry, spinless,
     Args:
         grid (Grid): The discretization to use.
         geometry: A list of tuples giving the coordinates of each atom.
-            example is [('H', (0, 0, 0)), ('H', (0, 0, 0.7414))].
-            Distances in atomic units. Use atomic symbols to specify atoms.
+                  example is [('H', (0, 0, 0)), ('H', (0, 0, 0.7414))].
+                  Distances in atomic units. Use atomic symbols to specify atoms.
         spinless (bool): Whether to use the spinless model or not.
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
-            grid.volume_scale() ** (1. / grid.dimensions)
+                               grid.volume_scale() ** (1. / grid.dimensions)
+        fieldlines (int): Spatial dimension for electric field lines. 
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
         FermionOperator: The dual basis operator.
     """
     #print('Edited source. \n')
-    prefactor = -4.0 * numpy.pi / grid.volume_scale()
+    
+    # Initialize.
+    prefactor = 0.
+    
+    # 3D case.
+    if grid.dimensions == 3:
+        prefactor = -4.0 * numpy.pi / grid.volume_scale()
+    
+    # 2D case.
+    elif grid.dimensions == 2:
+        prefactor = -1. / grid.volume_scale()
+        
     
     # [(True and None) is None] == True
     # [(False and None) is None] == False
@@ -136,13 +154,12 @@ def dual_basis_external_potential(grid, geometry, spinless,
             # If non_periodic. 
             # See paper Appendix E.2. This is not setting function at boundary to 0.
             # Just accounting for Fourier Transform with truncated Coulomb operator.
-            '''
-            # First naive implementation.
-            if non_periodic:
-                coefficient *= 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))s
+            
+            
             '''
             if non_periodic:
-                #print('non_periodic\n')
+                if verbose:
+                    print('non_periodic\n')
                 
                 diff = coordinate_j - coordinate_p
                 
@@ -155,6 +172,7 @@ def dual_basis_external_potential(grid, geometry, spinless,
                     
                     # Continue on to next nuclear term.
                     continue
+            '''
             
             # Sum over nu.
             for momenta_indices in grid.all_points_indices():
@@ -165,14 +183,65 @@ def dual_basis_external_potential(grid, geometry, spinless,
                     continue
                 
                 # Compute coefficient.
-                cos_index = momenta.dot(coordinate_j - coordinate_p)
-                coefficient = (prefactor / momenta_squared *
-                               periodic_hash_table[nuclear_term[0]] *
-                               numpy.cos(cos_index))
-                '''
-                print('cos index: {}\n'.format(cos_index))
-                print('coefficient: {}\n'.format(coefficient))
-                '''
+                coefficient = 0.
+                cos_index = momenta.dot(coordinate_j + coordinate_p)
+                
+                # 3D case.
+                if grid.dimensions == 3:
+                    coefficient = (prefactor / momenta_squared *
+                                   periodic_hash_table[nuclear_term[0]] *
+                                   numpy.cos(cos_index))
+                    
+                    # First naive implementation.
+                    if non_periodic:
+                        correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                        coefficient *= correction
+
+                        if verbose:
+                            print('non_periodic')
+                            print('cutoff: {}'.format(period_cutoff))
+                            print('correction: {}'.format(correction))
+                            print('coefficient: {}\n'.format(coefficient))
+
+                            
+                # 2D case.
+                elif grid.dimensions == 2:
+                    V_nu = 0.
+                    
+                    if fieldlines == 2:
+                        if non_periodic:
+                            if verbose:
+                                print('non-periodic')
+                                print('cutoff: {}\n'.format(period_cutoff))
+                            
+                        else:
+                            var1 = 0.25 * momenta_squared
+                            var2 = 4. / momenta_squared
+
+                            V_nu = numpy.complex128(1. / 2. * 
+                                    (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
+                                     mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+
+                    elif fieldlines == 3:
+                        if non_periodic:
+                            if verbose:
+                                print('non-periodic')
+                                print('cutoff: {}\n'.format(period_cutoff))
+                                
+                            var = -0.25 * period_cutoff**2 * momenta_squared
+                            V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                            
+                        else:
+                            V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+
+                    coefficient = prefactor * V_nu
+
+                    if verbose:
+                        print('fieldlines = {}'.format(fieldlines))
+                        print('prefactor: {}'.format(prefactor))
+                        print('V_nu: {}'.format(V_nu))
+                        print('coefficient: {}\n'.format(coefficient))
+                    
                 
                 for spin_p in spins:
                     orbital_p = grid.orbital_id(pos_indices, spin_p)
@@ -207,13 +276,13 @@ def plane_wave_external_potential_v2(grid, geometry, spinless, e_cutoff=None,
     Args:
         grid (Grid): The discretization to use.
         geometry: A list of tuples giving the coordinates of each atom.
-            example is [('H', (0, 0, 0)), ('H', (0, 0, 0.7414))].
-            Distances in atomic units. Use atomic symbols to specify atoms.
+                  example is [('H', (0, 0, 0)), ('H', (0, 0, 0.7414))].
+                  Distances in atomic units. Use atomic symbols to specify atoms.
         spinless: Bool, whether to use the spinless model or not.
         e_cutoff (float): Energy cutoff.
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
-            grid.volume_scale() ** (1. / grid.dimensions)
+                               grid.volume_scale() ** (1. / grid.dimensions)
         verbose (bool): Whether to turn on print statements.    
 
     Returns:
@@ -478,7 +547,7 @@ def plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None,
 
 
 def plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None,
-                                  non_periodic=False, period_cutoff=None, verbose=False):
+                                  non_periodic=False, period_cutoff=None, fieldlines=3, verbose=False):
     """Return the external potential operator in plane wave basis.
 
     The external potential resulting from electrons interacting with nuclei.
@@ -497,6 +566,7 @@ def plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions)
+        fieldlines (int): Spatial dimension for electric field lines. 
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
@@ -504,7 +574,8 @@ def plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None,
     """
     dual_basis_operator = dual_basis_external_potential(grid, geometry,
                                                         spinless, non_periodic,
-                                                        period_cutoff, verbose)
+                                                        period_cutoff, fieldlines, verbose)
+    
     operator = (openfermion.utils.inverse_fourier_transform(dual_basis_operator,
                                                             grid, spinless))
     
@@ -524,7 +595,7 @@ def plane_wave_hamiltonian(grid, geometry=None,
                            spinless=False, plane_wave=True,
                            include_constant=False, e_cutoff=None,
                            non_periodic=False, period_cutoff=None, 
-                           ft=False, verbose=False):
+                           ft=False, fieldlines=3, verbose=False):
     """Returns Hamiltonian as FermionOperator class.
 
     Args:
@@ -542,6 +613,7 @@ def plane_wave_hamiltonian(grid, geometry=None,
             grid.volume_scale() ** (1. / grid.dimensions)
         ft (bool): Whether to use the Fourier Transform of the dual basis
                    potentials as the plane wave potentials.
+        fieldlines (int): Spatial dimension for electric field lines. 
         verbose (bool): Whether to turn on print statements.
 
     Returns:
@@ -551,7 +623,7 @@ def plane_wave_hamiltonian(grid, geometry=None,
         raise ValueError('Constant term unsupported for non-uniform systems')
 
     jellium_op = jellium_model(grid, spinless, plane_wave, include_constant,
-                               e_cutoff, non_periodic, period_cutoff, ft, verbose)
+                               e_cutoff, non_periodic, period_cutoff, ft, fieldlines, verbose)
 
     if geometry is None:
         return jellium_op
@@ -564,10 +636,10 @@ def plane_wave_hamiltonian(grid, geometry=None,
 
     if plane_wave:
         external_potential = plane_wave_external_potential(
-            grid, geometry, spinless, e_cutoff, non_periodic, period_cutoff)
+            grid, geometry, spinless, e_cutoff, non_periodic, period_cutoff, fieldlines, verbose)
     else:
         external_potential = dual_basis_external_potential(
-            grid, geometry, spinless, non_periodic, period_cutoff, verbose)
+            grid, geometry, spinless, non_periodic, period_cutoff, fieldlines, verbose)
 
     return jellium_op + external_potential
 
