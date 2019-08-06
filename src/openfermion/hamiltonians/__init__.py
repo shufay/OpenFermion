@@ -32,7 +32,6 @@ from ._molecular_data import (
 from ._plane_wave_hamiltonian import (center,
                                       dual_basis_external_potential,
                                       plane_wave_external_potential,
-                                      plane_wave_external_potential_v2,
                                       plane_wave_hamiltonian,
                                       jordan_wigner_dual_basis_hamiltonian)
 

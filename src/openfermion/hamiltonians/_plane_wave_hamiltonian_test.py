@@ -83,17 +83,28 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                                                     (0, 0, 0))])
 
     def test_jordan_wigner_dual_basis_hamiltonian(self):
-        grid = Grid(dimensions=3, length=2, scale=1.)
+        geometry_sets = {
+                        2: [[('H', (0., 0.)), ('H', (0.8, 0.))], [('H', (0.1, 0.))]], 
+                        3: [[('H', (0., 0., 0.)), ('H', (0., 0., 0.))], [('H', (0.5, 0.8, 0.))]]
+                        }
+        
+        # [[spatial dimension, fieldline dimension]]
+        dims = [[2, 2], [2, 3], [3, 3]]
         spinless_set = [True]
-        geometry = [('H', (0., 0., 0.)), ('H', (0.5, 0.8, 0.))]
-        for spinless in spinless_set:
-            fermion_hamiltonian = plane_wave_hamiltonian(
-                grid, geometry, spinless, False, include_constant=False)
-            qubit_hamiltonian = jordan_wigner(fermion_hamiltonian)
+        length_scale = 1.1
+        
+        for dim in dims:
+            for geometry in geometry_sets[dim[0]]:
+                for length in range(2, 6 - dim[0]):
+                    for spinless in spinless_set:
+                        grid = Grid(dimensions=dim[0], scale=length_scale, length=length)
+                        fermion_hamiltonian = plane_wave_hamiltonian(
+                            grid, geometry, spinless, False, include_constant=False, fieldlines=dim[1])
+                        qubit_hamiltonian = jordan_wigner(fermion_hamiltonian)
 
-            test_hamiltonian = jordan_wigner_dual_basis_hamiltonian(
-                grid, geometry, spinless, include_constant=False)
-            self.assertTrue(test_hamiltonian == qubit_hamiltonian)
+                        test_hamiltonian = jordan_wigner_dual_basis_hamiltonian(
+                            grid, geometry, spinless, include_constant=False, fieldlines=dim[1])
+                        self.assertTrue(test_hamiltonian == qubit_hamiltonian)
 
     def test_jordan_wigner_dual_basis_hamiltonian_default_to_jellium(self):
         grid = Grid(dimensions=3, scale=1.0, length=2)
@@ -155,67 +166,65 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                   }
         
         # [[spatial dimension, fieldline dimension]]
-        dims = [[2, 3], [3, 3]]
+        dims = [[2, 2], [2, 3], [3, 3]]
         spinless_set = [True]
         scale = 8 * 1.
         
         for dim in dims:
-                for geometry in geometry_sets[dim[0]]:
-                    for length in range(2, 6 - dim[0]):
-                        for spinless in spinless_set:
-                            grid = Grid(dimensions=dim[0], scale=scale, length=length)
+            for geometry in geometry_sets[dim[0]]:
+                for length in range(2, 6 - dim[0]):
+                    for spinless in spinless_set:
+                        grid = Grid(dimensions=dim[0], scale=scale, length=length)
+                        period_cutoff = grid.volume_scale() ** (1. / grid.dimensions)
 
-                            # min period cutoff is scale * [( length - 1 )/length] * [1/( length - 1 )] == [ scale/length ]
-                            period_cutoff = grid.volume_scale() ** (1. / grid.dimensions) / 2.
+                        h_1 = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True, include_constant=False,
+                                                     e_cutoff=None, ft=False, fieldlines=dim[1])
+                        jw_1 = jordan_wigner(h_1)
+                        spectrum_1 = eigenspectrum(jw_1)
 
-                            h_1 = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True, include_constant=False,
-                                                         e_cutoff=None, ft=False, fieldlines=dim[1])
-                            jw_1 = jordan_wigner(h_1)
-                            spectrum_1 = eigenspectrum(jw_1)
+                        h_2 = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True, include_constant=False, 
+                                                     e_cutoff=None, non_periodic=True, period_cutoff=period_cutoff, ft=False,
+                                                     fieldlines=dim[1])
+                        jw_2 = jordan_wigner(h_2)
+                        spectrum_2 = eigenspectrum(jw_2)
 
-                            h_2 = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True, include_constant=False, 
-                                                         e_cutoff=None, non_periodic=True, period_cutoff=period_cutoff, ft=False,
-                                                         fieldlines=dim[1])
-                            jw_2 = jordan_wigner(h_2)
-                            spectrum_2 = eigenspectrum(jw_2)
+                        max_diff = numpy.amax(numpy.absolute(spectrum_1 - spectrum_2))
 
-                            max_diff = numpy.amax(numpy.absolute(spectrum_1 - spectrum_2))
-
-                            # Checks if non-periodic and periodic cases are different.
-                            self.assertGreater(max_diff, 0.)
+                        # Checks if non-periodic and periodic cases are different.
+                        self.assertGreater(max_diff, 0.)
 
 
-                            # TODO: This is only for code coverage. Remove after having real
-                            #     integration test.
-                            momentum_hamiltonian = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True,
-                                                                          include_constant=False, e_cutoff=None, 
-                                                                          non_periodic=True, period_cutoff=period_cutoff,
-                                                                          ft=False, fieldlines=dim[1])
+                        # TODO: This is only for code coverage. Remove after having real
+                        #     integration test.
+                        momentum_hamiltonian = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True,
+                                                                      include_constant=False, e_cutoff=None, 
+                                                                      non_periodic=True, period_cutoff=period_cutoff,
+                                                                      ft=False, fieldlines=dim[1])
 
-                            position_hamiltonian = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=False, 
-                                                                          include_constant=False, e_cutoff=None, 
-                                                                          non_periodic=True, period_cutoff=period_cutoff,
-                                                                          ft=False, fieldlines=dim[1])
+                        position_hamiltonian = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=False, 
+                                                                      include_constant=False, e_cutoff=None, 
+                                                                      non_periodic=True, period_cutoff=period_cutoff,
+                                                                      ft=False, fieldlines=dim[1])
 
-                            # Confirm they are Hermitian
-                            momentum_hamiltonian_operator = (
-                                get_sparse_operator(momentum_hamiltonian))
-                            self.assertTrue(is_hermitian(momentum_hamiltonian_operator))
+                        # Confirm they are Hermitian
+                        momentum_hamiltonian_operator = (
+                            get_sparse_operator(momentum_hamiltonian))
+                        self.assertTrue(is_hermitian(momentum_hamiltonian_operator))
 
-                            position_hamiltonian_operator = (
-                                get_sparse_operator(position_hamiltonian))
-                            self.assertTrue(is_hermitian(position_hamiltonian_operator))
+                        position_hamiltonian_operator = (
+                            get_sparse_operator(position_hamiltonian))
+                        self.assertTrue(is_hermitian(position_hamiltonian_operator))
 
-                            # Diagonalize and confirm the same energy.
-                            jw_momentum = jordan_wigner(momentum_hamiltonian)
-                            jw_position = jordan_wigner(position_hamiltonian)
-                            momentum_spectrum = eigenspectrum(jw_momentum)
-                            position_spectrum = eigenspectrum(jw_position)
+                        # Diagonalize and confirm the same energy.
+                        jw_momentum = jordan_wigner(momentum_hamiltonian)
+                        jw_position = jordan_wigner(position_hamiltonian)
+                        momentum_spectrum = eigenspectrum(jw_momentum)
+                        position_spectrum = eigenspectrum(jw_position)
 
-                            # Confirm spectra are the same.
-                            difference = numpy.amax(
-                                numpy.absolute(momentum_spectrum - position_spectrum))
-                            self.assertAlmostEqual(difference, 0.)
+                        # Confirm spectra are the same.
+                        difference = numpy.amax(
+                            numpy.absolute(momentum_spectrum - position_spectrum))
+                        self.assertAlmostEqual(difference, 0.)
 
     def test_nonperiodic_external_potential_integration(self):
         # Compute potential energy operator in momentum and position space.
@@ -226,42 +235,40 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                   }
         
         # [[spatial dimension, fieldline dimension]]
-        dims = [[2, 3], [3, 3]]
+        dims = [[2, 2], [2, 3], [3, 3]]
         spinless_set = [True]
         scale = 8 * 1.
         
         for dim in dims:
-                for geometry in geometry_sets[dim[0]]:
-                    for length in range(2, 6 - dim[0]):
-                        for spinless in spinless_set:
-                            grid = Grid(dimensions=dim[0], scale=scale, length=length)
-            
-                            # min period cutoff is scale * [( length - 1 )/length] * [1/( length - 1 )] == [ scale/length ]
-                            period_cutoff = grid.volume_scale() ** (1. / grid.dimensions) / 2.
+            for geometry in geometry_sets[dim[0]]:
+                for length in range(2, 6 - dim[0]):
+                    for spinless in spinless_set:
+                        grid = Grid(dimensions=dim[0], scale=scale, length=length)
+                        period_cutoff = grid.volume_scale() ** (1. / grid.dimensions)
 
-                            momentum_external_potential = plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None, 
-                                                                                        non_periodic=True, period_cutoff=period_cutoff,
-                                                                                        fieldlines=dim[1])
-                            position_external_potential = dual_basis_external_potential(grid, geometry, spinless, 
-                                                                                        non_periodic=True, period_cutoff=period_cutoff,
-                                                                                        fieldlines=dim[1])
+                        momentum_external_potential = plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None, 
+                                                                                    non_periodic=True, period_cutoff=period_cutoff,
+                                                                                    fieldlines=dim[1])
+                        position_external_potential = dual_basis_external_potential(grid, geometry, spinless, 
+                                                                                    non_periodic=True, period_cutoff=period_cutoff,
+                                                                                    fieldlines=dim[1])
 
-                            # Confirm they are Hermitian
-                            momentum_external_potential_operator = (
-                                get_sparse_operator(momentum_external_potential))
-                            self.assertTrue(is_hermitian(momentum_external_potential_operator))
+                        # Confirm they are Hermitian
+                        momentum_external_potential_operator = (
+                            get_sparse_operator(momentum_external_potential))
+                        self.assertTrue(is_hermitian(momentum_external_potential_operator))
 
-                            position_external_potential_operator = (
-                                get_sparse_operator(position_external_potential))
-                            self.assertTrue(is_hermitian(position_external_potential_operator))
+                        position_external_potential_operator = (
+                            get_sparse_operator(position_external_potential))
+                        self.assertTrue(is_hermitian(position_external_potential_operator))
 
-                            # Diagonalize and confirm the same energy.
-                            jw_momentum = jordan_wigner(momentum_external_potential)
-                            jw_position = jordan_wigner(position_external_potential)
-                            momentum_spectrum = eigenspectrum(jw_momentum)
-                            position_spectrum = eigenspectrum(jw_position)
+                        # Diagonalize and confirm the same energy.
+                        jw_momentum = jordan_wigner(momentum_external_potential)
+                        jw_position = jordan_wigner(position_external_potential)
+                        momentum_spectrum = eigenspectrum(jw_momentum)
+                        position_spectrum = eigenspectrum(jw_position)
 
-                            # Confirm spectra are the same.
-                            difference = numpy.amax(
-                                numpy.absolute(momentum_spectrum - position_spectrum))
-                            self.assertAlmostEqual(difference, 0.)
+                        # Confirm spectra are the same.
+                        difference = numpy.amax(
+                            numpy.absolute(momentum_spectrum - position_spectrum))
+                        self.assertAlmostEqual(difference, 0.)

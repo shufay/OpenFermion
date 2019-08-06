@@ -133,7 +133,6 @@ class JelliumTest(unittest.TestCase):
     def test_kinetic_integration(self):
         # Compute kinetic energy operator in both momentum and position space.
         grid = Grid(dimensions=2, length=2, scale=3.)
-        #spinless = False
         spinless_set = [True, False]
         
         for spinless in spinless_set:
@@ -177,18 +176,18 @@ class JelliumTest(unittest.TestCase):
         # Compute potential energy operator in momentum and position space.
         # Periodic test only.
         spinless_set = [True]
+        verbose = False
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
-        #dims = [3]
     
         for dim in dims:
             for length in range(2, 6 - dim[0]):
                 for spinless in spinless_set:
                     grid = Grid(dimensions=dim[0], length=length, scale=2.)
 
-                    momentum_potential = plane_wave_potential(grid, spinless, fieldlines=dim[1], verbose=True)
-                    position_potential = dual_basis_potential(grid, spinless, fieldlines=dim[1], verbose=True)
+                    momentum_potential = plane_wave_potential(grid, spinless, fieldlines=dim[1], verbose=verbose)
+                    position_potential = dual_basis_potential(grid, spinless, fieldlines=dim[1], verbose=verbose)
 
                     # Confirm they are Hermitian
                     momentum_potential_operator = (
@@ -213,17 +212,17 @@ class JelliumTest(unittest.TestCase):
     def test_model_integration(self):
         # Compute Hamiltonian in both momentum and position space.
         spinless_set = [True]
+        verbose = False
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
-        #dims = [3]
         
         for dim in dims:
             for length in range(2, 6 - dim[0]):
                 for spinless in spinless_set:
                     grid = Grid(dimensions=dim[0], length=length, scale=1.0)
-                    momentum_hamiltonian = jellium_model(grid, spinless, True, fieldlines=dim[1], verbose=True)
-                    position_hamiltonian = jellium_model(grid, spinless, False, fieldlines=dim[1], verbose=True)
+                    momentum_hamiltonian = jellium_model(grid, spinless, True, fieldlines=dim[1], verbose=verbose)
+                    position_hamiltonian = jellium_model(grid, spinless, False, fieldlines=dim[1], verbose=verbose)
 
                     # Confirm they are Hermitian
                     momentum_hamiltonian_operator = (
@@ -252,7 +251,6 @@ class JelliumTest(unittest.TestCase):
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
-        #dims = [3]
         
         for dim in dims:
             for length in range(2, 6 - dim[0]):
@@ -289,111 +287,239 @@ class JelliumTest(unittest.TestCase):
     def test_coefficients(self):
         # Test that the coefficients post-JW transform are as claimed in paper.
         spinless = True
+        non_periodics = [False, True]
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
-        #dims = [3]
         
         for dim in dims:
             for length in range(2, 6 - dim[0]):
-                grid = Grid(dimensions=dim[0], length=length, scale=2.)
-                n_orbitals = grid.num_points
-                n_qubits = (2 ** (1 - spinless)) * n_orbitals
-                volume = grid.volume_scale()
+                for non_periodic in non_periodics:
+                    grid = Grid(dimensions=dim[0], length=length, scale=2.)
+                    n_orbitals = grid.num_points
+                    n_qubits = (2 ** (1 - spinless)) * n_orbitals
+                    volume = grid.volume_scale()
+                    period_cutoff = None
+                    
+                    if non_periodic:
+                        period_cutoff = volume ** (1. / grid.dimensions)
+                    
+                    fieldlines = dim[1]
 
-                # Kinetic operator.
-                kinetic = dual_basis_kinetic(grid, spinless)
-                qubit_kinetic = jordan_wigner(kinetic)
+                    # Kinetic operator.
+                    kinetic = dual_basis_kinetic(grid, spinless)
+                    qubit_kinetic = jordan_wigner(kinetic)
 
-                # Potential operator.
-                potential = dual_basis_potential(grid, spinless, fieldlines=dim[1])
-                qubit_potential = jordan_wigner(potential)
+                    # Potential operator.
+                    potential = dual_basis_potential(grid, spinless, non_periodic=non_periodic, 
+                                                     period_cutoff=period_cutoff, fieldlines=fieldlines)
+                    qubit_potential = jordan_wigner(potential)
 
-                # Check identity.
-                identity = tuple()
-                kinetic_coefficient = qubit_kinetic.terms[identity]
-                potential_coefficient = qubit_potential.terms[identity]
-
-                paper_kinetic_coefficient = 0.
-                paper_potential_coefficient = 0.
-                for indices in grid.all_points_indices():
-                    momenta = grid.momentum_vector(indices)
-                    paper_kinetic_coefficient += float(
-                        n_qubits) * momenta.dot(momenta) / float(4. * n_orbitals)
-
-                    if momenta.any():
-                        potential_contribution = -numpy.pi * float(n_qubits) / float(
-                            2. * momenta.dot(momenta) * volume)
-                        paper_potential_coefficient += potential_contribution
-
-                self.assertAlmostEqual(
-                    kinetic_coefficient, paper_kinetic_coefficient)
-                self.assertAlmostEqual(
-                    potential_coefficient, paper_potential_coefficient)
-
-                # Check Zp.
-                for p in range(n_qubits):
-                    zp = ((p, 'Z'),)
-                    kinetic_coefficient = qubit_kinetic.terms[zp]
-                    potential_coefficient = qubit_potential.terms[zp]
+                    # Check identity.
+                    identity = tuple()
+                    kinetic_coefficient = qubit_kinetic.terms[identity]
+                    potential_coefficient = qubit_potential.terms[identity]
 
                     paper_kinetic_coefficient = 0.
                     paper_potential_coefficient = 0.
                     for indices in grid.all_points_indices():
                         momenta = grid.momentum_vector(indices)
-                        paper_kinetic_coefficient -= momenta.dot(
-                            momenta) / float(4. * n_orbitals)
+                        momenta_squared = momenta.dot(momenta)
+                        paper_kinetic_coefficient += float(n_qubits) * momenta_squared / float(4. * n_orbitals)
 
                         if momenta.any():
-                            potential_contribution = numpy.pi / float(
-                                momenta.dot(momenta) * volume)
+                            potential_contribution = 0.
+
+                            # 3D case.
+                            if grid.dimensions == 3:    
+                                potential_contribution = -numpy.pi * float(n_qubits) / float(
+                                    2. * momenta_squared * volume)
+
+                                if non_periodic:
+                                    correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                                    potential_contribution *= correction
+
+                            # 2D case.
+                            elif grid.dimensions == 2:
+                                V_nu = 0.
+
+                                if fieldlines == 2:
+                                    if non_periodic:
+                                        # Set zero reference length scale for the potential. 
+                                        # For now, we take the reference length scale as the length of cell.
+                                        r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                                        Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                                        V_nu = 4. * numpy.pi / momenta_squared * (
+                                            Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+
+                                    else:
+                                        var1 = 0.25 * momenta_squared
+                                        var2 = 4. / momenta_squared
+
+                                        V_nu = numpy.complex128(1. / 2. * 
+                                                (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
+                                                 mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+
+                                elif fieldlines == 3:
+                                    if non_periodic:
+                                        var = -0.25 * period_cutoff**2 * momenta_squared
+                                        V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+
+                                    else:
+                                        V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+
+                                potential_contribution = -float(n_qubits) / (8. * volume) * V_nu
+
                             paper_potential_coefficient += potential_contribution
+
 
                     self.assertAlmostEqual(
                         kinetic_coefficient, paper_kinetic_coefficient)
                     self.assertAlmostEqual(
                         potential_coefficient, paper_potential_coefficient)
 
-                # Check Zp Zq.
-                if spinless:
-                    spins = [None]
+                    # Check Zp.
+                    for p in range(n_qubits):
+                        zp = ((p, 'Z'),)
+                        kinetic_coefficient = qubit_kinetic.terms[zp]
+                        potential_coefficient = qubit_potential.terms[zp]
 
-                for indices_a in grid.all_points_indices():
-                    for indices_b in grid.all_points_indices():
-
-                        potential_coefficient = 0.
                         paper_kinetic_coefficient = 0.
                         paper_potential_coefficient = 0.
+                        for indices in grid.all_points_indices():
+                            momenta = grid.momentum_vector(indices)
+                            momenta_squared = momenta.dot(momenta)
+                            paper_kinetic_coefficient -= momenta_squared / float(4. * n_orbitals)
 
-                        position_a = grid.position_vector(indices_a)
-                        position_b = grid.position_vector(indices_b)
-                        differences = position_b - position_a
+                            if momenta.any():
+                                potential_contribution = 0.
 
-                        for spin_a in spins:
-                            for spin_b in spins:
+                                # 3D case.
+                                if grid.dimensions == 3:    
+                                    potential_contribution = numpy.pi / float(momenta_squared * volume)
 
-                                p = grid.orbital_id(indices_a, spin_a)
-                                q = grid.orbital_id(indices_b, spin_b)
+                                    if non_periodic:
+                                        correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                                        potential_contribution *= correction
 
-                                if p == q:
-                                    continue
+                                # 2D case.
+                                elif grid.dimensions == 2:
+                                    V_nu = 0.
 
-                                zpzq = ((min(p, q), 'Z'), (max(p, q), 'Z'))
-                                if zpzq in qubit_potential.terms:
-                                    potential_coefficient = qubit_potential.terms[zpzq]
+                                    if fieldlines == 2:
+                                        if non_periodic:
+                                            # Set zero reference length scale for the potential. 
+                                            # For now, we take the reference length scale as the length of cell.
+                                            r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                                            Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                                            V_nu = 4. * numpy.pi / momenta_squared * (
+                                                Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
 
-                                for indices_c in grid.all_points_indices():
-                                    momenta = grid.momentum_vector(indices_c)
+                                        else:
+                                            var1 = 0.25 * momenta_squared
+                                            var2 = 4. / momenta_squared
 
-                                    if momenta.any():
-                                        potential_contribution = numpy.pi * numpy.cos(
-                                            differences.dot(momenta)) / float(
-                                            momenta.dot(momenta) * volume)
-                                        paper_potential_coefficient += (
-                                            potential_contribution)
+                                            V_nu = numpy.complex128(1. / 2. * 
+                                                    (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
+                                                     mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
 
-                                self.assertAlmostEqual(
-                                    potential_coefficient, paper_potential_coefficient)
+                                    elif fieldlines == 3:
+                                        if non_periodic:
+                                            var = -0.25 * period_cutoff**2 * momenta_squared
+                                            V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+
+                                        else:
+                                            V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+
+                                    potential_contribution = 1. / (4. * volume) * V_nu
+
+                                paper_potential_coefficient += potential_contribution
+
+                        self.assertAlmostEqual(
+                            kinetic_coefficient, paper_kinetic_coefficient)
+                        self.assertAlmostEqual(
+                            potential_coefficient, paper_potential_coefficient)
+
+                    # Check Zp Zq.
+                    if spinless:
+                        spins = [None]
+
+                    for indices_a in grid.all_points_indices():
+                        for indices_b in grid.all_points_indices():
+
+                            potential_coefficient = 0.
+                            paper_kinetic_coefficient = 0.
+                            paper_potential_coefficient = 0.
+
+                            position_a = grid.position_vector(indices_a)
+                            position_b = grid.position_vector(indices_b)
+                            differences = position_b - position_a
+
+                            for spin_a in spins:
+                                for spin_b in spins:
+
+                                    p = grid.orbital_id(indices_a, spin_a)
+                                    q = grid.orbital_id(indices_b, spin_b)
+
+                                    if p == q:
+                                        continue
+
+                                    zpzq = ((min(p, q), 'Z'), (max(p, q), 'Z'))
+                                    if zpzq in qubit_potential.terms:
+                                        potential_coefficient = qubit_potential.terms[zpzq]
+
+                                    for indices_c in grid.all_points_indices():
+                                        momenta = grid.momentum_vector(indices_c)
+                                        momenta_squared = momenta.dot(momenta) 
+
+                                        if momenta.any():
+                                            potential_contribution = 0.
+
+                                            # 3D case.
+                                            if grid.dimensions == 3:    
+                                                potential_contribution = numpy.pi * numpy.cos(differences.dot(momenta)) / float(
+                                                    momenta_squared * volume)
+
+                                                if non_periodic:
+                                                    correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                                                    potential_contribution *= correction
+
+                                            # 2D case.
+                                            elif grid.dimensions == 2:
+                                                V_nu = 0.
+
+                                                if fieldlines == 2:
+                                                    if non_periodic:
+                                                        # Set zero reference length scale for the potential. 
+                                                        # For now, we take the reference length scale as the length of cell.
+                                                        r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                                                        Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                                                        V_nu = 4. * numpy.pi / momenta_squared * (
+                                                            Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+
+                                                    else:
+                                                        var1 = 0.25 * momenta_squared
+                                                        var2 = 4. / momenta_squared
+
+                                                        V_nu = numpy.complex128(1. / 2. * 
+                                                                (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
+                                                                 mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+
+                                                elif fieldlines == 3:
+                                                    if non_periodic:
+                                                        var = -0.25 * period_cutoff**2 * momenta_squared
+                                                        V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 
+                                                                                                                             1.5, var))
+
+                                                    else:
+                                                        V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+
+                                                potential_contribution = numpy.cos(differences.dot(momenta)) / (4. * volume) * V_nu
+
+                                            paper_potential_coefficient += potential_contribution
+
+                                    self.assertAlmostEqual(
+                                        potential_coefficient, paper_potential_coefficient)
 
     def test_jordan_wigner_dual_basis_jellium(self):
         # Parameters.
@@ -401,7 +527,6 @@ class JelliumTest(unittest.TestCase):
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
-        #dims = [3]
         
         for dim in dims:
             for length in range(2, 6 - dim[0]):
@@ -415,7 +540,7 @@ class JelliumTest(unittest.TestCase):
                     qubit_hamiltonian -= QubitOperator((), 2.8372)
 
                     # Compute Jordan-Wigner Hamiltonian.
-                    test_hamiltonian = jordan_wigner_dual_basis_jellium(grid, spinless)
+                    test_hamiltonian = jordan_wigner_dual_basis_jellium(grid, spinless, fieldlines=dim[1])
 
                     # Make sure Hamiltonians are the same.
                     self.assertTrue(test_hamiltonian == qubit_hamiltonian)
@@ -443,9 +568,9 @@ class JelliumTest(unittest.TestCase):
                 for spinless in spinless_set:
                     grid = Grid(dimensions=dim[0], length=length, scale=length_scale)
                     hamiltonian_without_constant = jordan_wigner_dual_basis_jellium(
-                        grid, spinless, include_constant=False)
+                        grid, spinless, include_constant=False, fieldlines=dim[1])
                     hamiltonian_with_constant = jordan_wigner_dual_basis_jellium(
-                        grid, spinless, include_constant=True)
+                        grid, spinless, include_constant=True, fieldlines=dim[1])
 
                     difference = hamiltonian_with_constant - hamiltonian_without_constant
                     expected = QubitOperator('') * (2.8372 / length_scale)
@@ -485,14 +610,12 @@ class JelliumTest(unittest.TestCase):
         spinless = True
         
         # [[spatial dimension, fieldline dimension]]
-        dims = [[2, 3], [3, 3]]
+        dims = [[2, 2], [2, 3], [3, 3]]
         
         for dim in dims:
             for length in range(2, 6 - dim[0]):
                 grid = Grid(dimensions=dim[0], length=length, scale=1.0)
-
-                # min period cutoff is scale * [( length - 1 )/length] * [1/( length - 1 )] == [ scale/length ]
-                period_cutoff = grid.volume_scale() ** (1. / grid.dimensions) / 2.
+                period_cutoff = grid.volume_scale() ** (1. / grid.dimensions)
 
                 hamiltonian_1 = jellium_model(grid, spinless=spinless, plane_wave=True, include_constant=False, fieldlines=dim[1])
                 jw_1 = jordan_wigner(hamiltonian_1)
@@ -545,7 +668,7 @@ class JelliumTest(unittest.TestCase):
         spinless = True
         
         # [[spatial dimension, fieldline dimension]]
-        dims = [[2, 3], [3, 3]]
+        dims = [[2, 2], [2, 3], [3, 3]]
         
         for dim in dims:
             for length in range(2, 6 - dim[0]):

@@ -13,7 +13,7 @@
 """This module constructs Hamiltonians for the uniform electron gas."""
 from __future__ import absolute_import
 
-import numpy, mpmath
+import numpy, mpmath, scipy
 
 from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.utils._grid import Grid
@@ -220,9 +220,17 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
             
             if fieldlines == 2:
                 if non_periodic:
-                    print('non-periodic')
-                    print('cutoff: {}\n'.format(period_cutoff))
-                    pass
+                        
+                    # Set zero reference length scale for the potential. 
+                    # For now, we take the reference length scale as the length of cell.
+                    r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                    Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                    V_nu = 4. * numpy.pi / momenta_squared * (
+                        Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+                    
+                    if verbose:
+                        print('non-periodic')
+                        print('cutoff: {}\n'.format(period_cutoff))
                     
                 else:
                     var1 = 0.25 * momenta_squared
@@ -234,10 +242,12 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
 
             elif fieldlines == 3:
                 if non_periodic:
-                    print('non-periodic')
-                    print('cutoff: {}\n'.format(period_cutoff))
                     var = -0.25 * period_cutoff**2 * momenta_squared
                     V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                    
+                    if verbose:
+                        print('non-periodic')
+                        print('cutoff: {}\n'.format(period_cutoff))
                     
                 else:
                     V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
@@ -433,13 +443,13 @@ def dual_basis_jellium_model(grid, spinless=False,
             # This computes 2pi/Omega * sum_nu{ cos[k_nu * r_(p-q)] / k_nu^2 }
             if potential: 
                 
+                # Potential coefficient for this value of nu.
+                potential_coefficient_nu = 0.
+                
                 # 3D case.
                 if grid.dimensions == 3:
-                    
-                    # Potential coefficient for this value of nu.
                     potential_coefficient_nu = position_prefactor * cos_difference / momenta_squared
                     
-                    # First naive implementation.
                     if non_periodic:
                         correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
                         potential_coefficient_nu *= correction
@@ -448,8 +458,6 @@ def dual_basis_jellium_model(grid, spinless=False,
                             print('non_periodic')
                             print('cutoff: {}'.format(period_cutoff))
                             print('correction: {}\n'.format(correction))
-                    
-                    potential_coefficient += potential_coefficient_nu
                             
                 
                 # 2D case.
@@ -458,6 +466,14 @@ def dual_basis_jellium_model(grid, spinless=False,
 
                     if fieldlines == 2:
                         if non_periodic:
+                            
+                            # Set zero reference length scale for the potential. 
+                            # For now, we take the reference length scale as the length of cell.
+                            r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                            Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                            V_nu = 4. * numpy.pi / momenta_squared * (
+                                Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+                            
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}\n'.format(period_cutoff))
@@ -472,25 +488,24 @@ def dual_basis_jellium_model(grid, spinless=False,
                             
                     elif fieldlines == 3:
                         if non_periodic:
+                            var = -0.25 * period_cutoff**2 * momenta_squared
+                            V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                            
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}\n'.format(period_cutoff))
-                                
-                            var = -0.25 * period_cutoff**2 * momenta_squared
-                            V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
                         
                         else:    
                             V_nu = 2. * numpy.pi / numpy.sqrt(momenta_squared)
                             
                     # Potential coefficient for this value of nu.
                     potential_coefficient_nu = position_prefactor * V_nu * cos_difference
-                    potential_coefficient += potential_coefficient_nu
+                
+                potential_coefficient += potential_coefficient_nu
                     
-                    if verbose:
-                        print('fieldlines = {}'.format(fieldlines))
-                        print('position prefactor: {}'.format(position_prefactor))
-                        print('V_nu: {}'.format(V_nu))
-                        print('potential coefficient nu: {}\n'.format(potential_coefficient_nu))
+                if verbose:
+                    print('fieldlines = {}'.format(fieldlines))
+                    print('potential coefficient nu: {}\n'.format(potential_coefficient_nu))
                         
         
         if verbose:
@@ -663,7 +678,9 @@ def jellium_model(grid, spinless=False, plane_wave=True,
 
 
 def jordan_wigner_dual_basis_jellium(grid, spinless=False,
-                                     include_constant=False):
+                                     include_constant=False, 
+                                     non_periodic=False, period_cutoff=None,
+                                     fieldlines=3, verbose=False):
     """Return the jellium Hamiltonian as QubitOperator in the dual basis.
 
     Args:
@@ -672,6 +689,11 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
         include_constant (bool): Whether to include the Madelung constant.
             Note constant is unsupported for non-uniform, non-cubic cells with
             ions.
+        non_periodic (bool): If the system is non-periodic, default to False.
+        period_cutoff (float): Period cutoff, default to
+            grid.volume_scale() ** (1. / grid.dimensions).
+        fieldlines (int): Spatial dimension for electric field lines. 
+        verbose (bool): Whether to turn on print statements.
 
     Returns:
         hamiltonian (QubitOperator)
@@ -679,6 +701,10 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
     # Initialize.
     n_orbitals = grid.num_points
     volume = grid.volume_scale()
+    
+    if non_periodic and period_cutoff is None:
+        period_cutoff = volume ** (1.0 / grid.dimensions)
+        
     if spinless:
         n_qubits = n_orbitals
     else:
@@ -692,23 +718,98 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
         momenta = grid.momentum_vector(indices)
         momentum_vectors[indices] = momenta
         momenta_squared_dict[indices] = momenta.dot(momenta)
-
+    
+    #-------------------------------------------------------------------------
     # Compute the identity coefficient and the coefficient of local Z terms.
+    #-------------------------------------------------------------------------
     identity_coefficient = 0.
     z_coefficient = 0.
+    
     for k_indices in grid.all_points_indices():
         momenta = momentum_vectors[k_indices]
         momenta_squared = momenta.dot(momenta)
         if momenta_squared == 0:
             continue
-
+    
         identity_coefficient += momenta_squared / 2.
-        identity_coefficient -= (numpy.pi * float(n_orbitals) /
-                                 (momenta_squared * volume))
-        z_coefficient += numpy.pi / (momenta_squared * volume)
         z_coefficient -= momenta_squared / (4. * float(n_orbitals))
+        
+        # Coefficients for this value of nu.
+        identity_coefficient_nu = 0.
+        z_coefficient_nu = 0.
+
+        # 3D case.
+        if grid.dimensions == 3:
+            identity_coefficient_nu = (numpy.pi * float(n_orbitals) /
+                                     (momenta_squared * volume))
+            z_coefficient_nu = numpy.pi / (momenta_squared * volume)
+
+            if non_periodic:
+                correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                identity_coefficient_nu *= correction
+                z_coefficient_nu *= correction
+
+                if verbose:
+                    print('non_periodic')
+                    print('cutoff: {}'.format(period_cutoff))
+                    print('correction: {}'.format(correction))
+
+        # 2D case.
+        elif grid.dimensions == 2:
+            V_nu = 0.
+
+            if fieldlines == 2:
+                if non_periodic:
+                    
+                    # Set zero reference length scale for the potential. 
+                    # For now, we take the reference length scale as the length of cell.
+                    r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                    Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                    V_nu = 4. * numpy.pi / momenta_squared * (
+                        Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+                    
+                    if verbose:
+                        print('non-periodic')
+                        print('cutoff: {}'.format(period_cutoff))
+
+                else:
+                    var1 = 0.25 * momenta_squared
+                    var2 = 4. / momenta_squared
+
+                    V_nu = numpy.complex128(1. / 2. * 
+                            (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
+                             mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+
+            elif fieldlines == 3:
+                if non_periodic:
+                    var = -0.25 * period_cutoff**2 * momenta_squared
+                    V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                    
+                    if verbose:
+                        print('non-periodic')
+                        print('cutoff: {}'.format(period_cutoff))
+
+                else:
+                    V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+
+            identity_coefficient_nu = float(n_orbitals) / (4. * volume) * V_nu
+            z_coefficient_nu = 1. / (4. * volume) * V_nu
+
+            if verbose:
+                print('V_nu: {}\n'.format(V_nu))
+            
+        identity_coefficient -= identity_coefficient_nu
+        z_coefficient += z_coefficient_nu
+
+        if verbose:
+            print('fieldlines = {}'.format(fieldlines))
+            print('identity coefficient: {}'.format(identity_coefficient))
+            print('Z coefficient: {}\n'.format(z_coefficient))
+            
+            
     if spinless:
         identity_coefficient /= 2.
+    
 
     # Add identity term.
     identity_term = QubitOperator((), identity_coefficient)
@@ -719,8 +820,19 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
         qubit_term = QubitOperator(((qubit, 'Z'),), z_coefficient)
         hamiltonian += qubit_term
 
+    #-------------------------------------------------------------------------
     # Add ZZ terms and XZX + YZY terms.
-    zz_prefactor = numpy.pi / volume
+    #-------------------------------------------------------------------------
+    zz_prefactor = 0.
+    
+    # 3D case.
+    if grid.dimensions == 3:
+        zz_prefactor = numpy.pi / volume        
+    
+    # 2D case.
+    elif grid.dimensions == 2:
+        zz_prefactor = 1. / (4. * volume)
+        
     xzx_yzy_prefactor = .25 / float(n_orbitals)
     for p in range(n_qubits):
         index_p = grid.grid_indices(p, spinless)
@@ -743,12 +855,67 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                     continue
 
                 cos_difference = numpy.cos(momenta.dot(difference))
+                zpzq_coefficient_nu = 0.
 
-                zpzq_coefficient += (zz_prefactor * cos_difference /
-                                     momenta_squared)
+                # 3D case.
+                if grid.dimensions == 3:
+                    zpzq_coefficient_nu = (zz_prefactor * cos_difference /
+                                         momenta_squared)
+                    
+                    if non_periodic:
+                        correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                        zpzq_coefficient_nu *= correction
+
+                        if verbose:
+                            print('non_periodic')
+                            print('cutoff: {}'.format(period_cutoff))
+                            print('correction: {}'.format(correction))
+                            
+                # 2D case.
+                if grid.dimensions == 2:
+                    V_nu = 0.
+        
+                    if fieldlines == 2:
+                        if non_periodic:
+                            
+                            # Set zero reference length scale for the potential. 
+                            # For now, we take the reference length scale as the length of cell.
+                            r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                            Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                            V_nu = 4. * numpy.pi / momenta_squared * (
+                                Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+                            
+                            if verbose:
+                                print('non-periodic')
+                                print('cutoff: {}'.format(period_cutoff))
+
+                        else:
+                            var1 = 0.25 * momenta_squared
+                            var2 = 4. / momenta_squared
+
+                            V_nu = numpy.complex128(1. / 2. * 
+                                    (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
+                                     mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+                    
+                    elif fieldlines == 3:
+                        if non_periodic:
+                            var = -0.25 * period_cutoff**2 * momenta_squared
+                            V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                            
+                            if verbose:
+                                print('non-periodic')
+                                print('cutoff: {}'.format(period_cutoff))
+
+                        else:
+                            V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+                    
+                    zpzq_coefficient_nu = zz_prefactor * cos_difference * V_nu
+                            
+                zpzq_coefficient += zpzq_coefficient_nu
 
                 if skip_xzx_yzy:
                     continue
+                    
                 term_coefficient += (xzx_yzy_prefactor * cos_difference *
                                      momenta_squared)
 
