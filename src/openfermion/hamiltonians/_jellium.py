@@ -925,7 +925,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                         else:
                             var1 = 0.25 * momenta_squared
                             var2 = 4. / momenta_squared
-
+    
                             V_nu = numpy.complex128(1. / 2. * (
                                    mpmath.meijerg([[-0.5, 0., 0.], []], 
                                                    [[-0.5, 0.], [-1.]], var1) - 
