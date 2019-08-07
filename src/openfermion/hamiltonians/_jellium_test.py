@@ -325,18 +325,23 @@ class JelliumTest(unittest.TestCase):
                     for indices in grid.all_points_indices():
                         momenta = grid.momentum_vector(indices)
                         momenta_squared = momenta.dot(momenta)
-                        paper_kinetic_coefficient += float(n_qubits) * momenta_squared / float(4. * n_orbitals)
+                        paper_kinetic_coefficient += (
+                            float(n_qubits) * momenta_squared / 
+                            float(4. * n_orbitals))
 
                         if momenta.any():
                             potential_contribution = 0.
 
                             # 3D case.
                             if grid.dimensions == 3:    
-                                potential_contribution = -numpy.pi * float(n_qubits) / float(
-                                    2. * momenta_squared * volume)
+                                potential_contribution = -(
+                                    numpy.pi * float(n_qubits) / float(
+                                    2. * momenta_squared * volume))
 
                                 if non_periodic:
-                                    correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                                    correction = 1.0 - numpy.cos(
+                                                 period_cutoff * 
+                                                 numpy.sqrt(momenta_squared))
                                     potential_contribution *= correction
 
                             # 2D case.
@@ -349,26 +354,37 @@ class JelliumTest(unittest.TestCase):
                                         # For now, we take the reference length scale as the length of cell.
                                         r0 = grid.volume_scale() ** (1. / grid.dimensions)
                                         Dkv = period_cutoff * numpy.sqrt(momenta_squared)
-                                        V_nu = 4. * numpy.pi / momenta_squared * (
-                                            Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+                                        V_nu = (
+                                            4. * numpy.pi / momenta_squared * (
+                                            Dkv * numpy.log(period_cutoff / r0) * 
+                                            scipy.special.jv(1, Dkv) + 
+                                            scipy.special.jv(0, Dkv) - 1.))
 
                                     else:
                                         var1 = 0.25 * momenta_squared
                                         var2 = 4. / momenta_squared
 
-                                        V_nu = numpy.complex128(1. / 2. * 
-                                                (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
-                                                 mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+                                        V_nu = numpy.complex128(1. / 2. * (
+                                               mpmath.meijerg([[-0.5, 0., 0.], []], 
+                                                               [[-0.5, 0.], [-1.]], var1) - 
+                                               mpmath.meijerg([[1., 1.5, 2.], []], 
+                                                               [[1.5], []], var2)))
 
                                 elif fieldlines == 3:
                                     if non_periodic:
-                                        var = -0.25 * period_cutoff**2 * momenta_squared
-                                        V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                                        var = (
+                                            -0.25 * period_cutoff**2 * 
+                                            momenta_squared)
+                                        V_nu = numpy.complex128(
+                                            2 * numpy.pi * period_cutoff * 
+                                            mpmath.hyp1f2(0.5, 1., 1.5, var))
 
                                     else:
-                                        V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+                                        V_nu = (2 * numpy.pi / 
+                                                numpy.sqrt(momenta_squared))
 
-                                potential_contribution = -float(n_qubits) / (8. * volume) * V_nu
+                                potential_contribution = (
+                                    -float(n_qubits) / (8. * volume) * V_nu)
 
                             paper_potential_coefficient += potential_contribution
 
@@ -389,17 +405,21 @@ class JelliumTest(unittest.TestCase):
                         for indices in grid.all_points_indices():
                             momenta = grid.momentum_vector(indices)
                             momenta_squared = momenta.dot(momenta)
-                            paper_kinetic_coefficient -= momenta_squared / float(4. * n_orbitals)
+                            paper_kinetic_coefficient -= (
+                                momenta_squared / float(4. * n_orbitals))
 
                             if momenta.any():
                                 potential_contribution = 0.
 
                                 # 3D case.
                                 if grid.dimensions == 3:    
-                                    potential_contribution = numpy.pi / float(momenta_squared * volume)
+                                    potential_contribution = (
+                                        numpy.pi / float(momenta_squared * volume))
 
                                     if non_periodic:
-                                        correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                                        correction = 1.0 - numpy.cos(
+                                            period_cutoff * 
+                                            numpy.sqrt(momenta_squared))
                                         potential_contribution *= correction
 
                                 # 2D case.
@@ -412,26 +432,36 @@ class JelliumTest(unittest.TestCase):
                                             # For now, we take the reference length scale as the length of cell.
                                             r0 = grid.volume_scale() ** (1. / grid.dimensions)
                                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
-                                            V_nu = 4. * numpy.pi / momenta_squared * (
-                                                Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+                                            V_nu = (
+                                                4. * numpy.pi / momenta_squared * (
+                                                Dkv * numpy.log(period_cutoff / r0) * 
+                                                scipy.special.jv(1, Dkv) + 
+                                                scipy.special.jv(0, Dkv) - 1.))
 
                                         else:
                                             var1 = 0.25 * momenta_squared
                                             var2 = 4. / momenta_squared
 
-                                            V_nu = numpy.complex128(1. / 2. * 
-                                                    (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
-                                                     mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+                                            V_nu = numpy.complex128(1. / 2. * (
+                                                   mpmath.meijerg([[-0.5, 0., 0.], []], 
+                                                                   [[-0.5, 0.], [-1.]], var1) - 
+                                                   mpmath.meijerg([[1., 1.5, 2.], []], 
+                                                                   [[1.5], []], var2)))
 
                                     elif fieldlines == 3:
                                         if non_periodic:
-                                            var = -0.25 * period_cutoff**2 * momenta_squared
-                                            V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 1.5, var))
+                                            var = (-0.25 * period_cutoff**2 * 
+                                                   momenta_squared)
+                                            V_nu = numpy.complex128(
+                                                2 * numpy.pi * period_cutoff * 
+                                                mpmath.hyp1f2(0.5, 1., 1.5, var))
 
                                         else:
-                                            V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
+                                            V_nu = (2 * numpy.pi / 
+                                                    numpy.sqrt(momenta_squared))
 
-                                    potential_contribution = 1. / (4. * volume) * V_nu
+                                    potential_contribution = (
+                                        1. / (4. * volume) * V_nu)
 
                                 paper_potential_coefficient += potential_contribution
 
@@ -477,11 +507,15 @@ class JelliumTest(unittest.TestCase):
 
                                             # 3D case.
                                             if grid.dimensions == 3:    
-                                                potential_contribution = numpy.pi * numpy.cos(differences.dot(momenta)) / float(
-                                                    momenta_squared * volume)
+                                                potential_contribution = (
+                                                    numpy.pi * numpy.cos(
+                                                    differences.dot(momenta)) / 
+                                                    float(momenta_squared * volume))
 
                                                 if non_periodic:
-                                                    correction = 1.0 - numpy.cos(period_cutoff * numpy.sqrt(momenta_squared))
+                                                    correction = 1.0 - numpy.cos(
+                                                        period_cutoff * 
+                                                        numpy.sqrt(momenta_squared))
                                                     potential_contribution *= correction
 
                                             # 2D case.
@@ -492,29 +526,40 @@ class JelliumTest(unittest.TestCase):
                                                     if non_periodic:
                                                         # Set zero reference length scale for the potential. 
                                                         # For now, we take the reference length scale as the length of cell.
-                                                        r0 = grid.volume_scale() ** (1. / grid.dimensions)
-                                                        Dkv = period_cutoff * numpy.sqrt(momenta_squared)
-                                                        V_nu = 4. * numpy.pi / momenta_squared * (
-                                                            Dkv * numpy.log(period_cutoff / r0) * scipy.special.jv(1, Dkv) + scipy.special.jv(0, Dkv) - 1.)
+                                                        r0 = (
+                                                            grid.volume_scale() ** 
+                                                            (1. / grid.dimensions))
+                                                        Dkv = (
+                                                            period_cutoff * 
+                                                            numpy.sqrt(momenta_squared))
+                                                        V_nu = (
+                                                            4. * numpy.pi / momenta_squared * (
+                                                            Dkv * numpy.log(period_cutoff / r0) * 
+                                                            scipy.special.jv(1, Dkv) + 
+                                                            scipy.special.jv(0, Dkv) - 1.))
 
                                                     else:
                                                         var1 = 0.25 * momenta_squared
                                                         var2 = 4. / momenta_squared
 
-                                                        V_nu = numpy.complex128(1. / 2. * 
-                                                                (mpmath.meijerg([[-0.5, 0., 0.], []], [[-0.5, 0.], [-1.]], var1)) - 
-                                                                 mpmath.meijerg([[1., 1.5, 2.], []], [[1.5], []], var2))
+                                                        V_nu = numpy.complex128(1. / 2. * (
+                                                               mpmath.meijerg([[-0.5, 0., 0.], []], 
+                                                                               [[-0.5, 0.], [-1.]], var1) - 
+                                                               mpmath.meijerg([[1., 1.5, 2.], []], 
+                                                                               [[1.5], []], var2)))
 
                                                 elif fieldlines == 3:
                                                     if non_periodic:
                                                         var = -0.25 * period_cutoff**2 * momenta_squared
-                                                        V_nu = numpy.complex128(2 * numpy.pi * period_cutoff * mpmath.hyp1f2(0.5, 1., 
-                                                                                                                             1.5, var))
+                                                        V_nu = numpy.complex128(
+                                                            2 * numpy.pi * period_cutoff * 
+                                                            mpmath.hyp1f2(0.5, 1., 1.5, var))
 
                                                     else:
                                                         V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
 
-                                                potential_contribution = numpy.cos(differences.dot(momenta)) / (4. * volume) * V_nu
+                                                potential_contribution = (
+                                                    numpy.cos(differences.dot(momenta)) / (4. * volume) * V_nu)
 
                                             paper_potential_coefficient += potential_contribution
 
