@@ -902,7 +902,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                             print('correction: {}'.format(correction))
                             
                 # 2D case.
-                if grid.dimensions == 2:
+                elif grid.dimensions == 2:
                     V_nu = 0.
         
                     if fieldlines == 2:
