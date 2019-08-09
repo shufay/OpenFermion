@@ -133,163 +133,167 @@ class JelliumTest(unittest.TestCase):
     def test_kinetic_integration(self):
         # Compute kinetic energy operator in both momentum and position space.
         grid = Grid(dimensions=2, length=2, scale=3.)
-        spinless_set = [True, False]
+        spinless = False
         
-        for spinless in spinless_set:
+        momentum_kinetic = plane_wave_kinetic(grid, spinless)
+        position_kinetic = dual_basis_kinetic(grid, spinless)
+
+        # Confirm they are Hermitian.
+        momentum_kinetic_operator = get_sparse_operator(momentum_kinetic)
+        self.assertTrue(is_hermitian(momentum_kinetic_operator))
+
+        position_kinetic_operator = get_sparse_operator(position_kinetic)
+        self.assertTrue(is_hermitian(position_kinetic_operator))
+
+        # Confirm spectral match and hermiticity.
+        for length in [2, 3, 4]:
+            grid = Grid(dimensions=1, length=length, scale=2.1)
+
             momentum_kinetic = plane_wave_kinetic(grid, spinless)
             position_kinetic = dual_basis_kinetic(grid, spinless)
 
-            # Confirm they are Hermitian
+            # Confirm they are Hermitian.
             momentum_kinetic_operator = get_sparse_operator(momentum_kinetic)
             self.assertTrue(is_hermitian(momentum_kinetic_operator))
 
             position_kinetic_operator = get_sparse_operator(position_kinetic)
             self.assertTrue(is_hermitian(position_kinetic_operator))
 
-        # Confirm spectral match and hermiticity
-        for length in [2, 3, 4]:
-            for spinless in spinless_set:
-                grid = Grid(dimensions=1, length=length, scale=2.1)
+            # Diagonalize and confirm the same energy.
+            jw_momentum = jordan_wigner(momentum_kinetic)
+            jw_position = jordan_wigner(position_kinetic)
+            momentum_spectrum = eigenspectrum(jw_momentum, 2 * length)
+            position_spectrum = eigenspectrum(jw_position, 2 * length)
 
-                momentum_kinetic = plane_wave_kinetic(grid, spinless)
-                position_kinetic = dual_basis_kinetic(grid, spinless)
+            # Confirm spectra are the same.
+            difference = numpy.amax(
+                numpy.absolute(momentum_spectrum - position_spectrum))
+            self.assertAlmostEqual(difference, 0.)
 
-                # Confirm they are Hermitian
-                momentum_kinetic_operator = get_sparse_operator(momentum_kinetic)
-                self.assertTrue(is_hermitian(momentum_kinetic_operator))
+    def test_potential_integration(self):
+        # Compute potential energy operator in momentum and position space.
+        # Periodic test only.
+        spinless = True
+        verbose = False
+        
+        # [[spatial dimension, fieldline dimension]].
+        dims = [[2, 2], [2, 3], [3, 3]]
+    
+        for dim in dims:
+            
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
+            for length in range(2, 6 - dim[0]):
+                grid = Grid(dimensions=dim[0], length=length, scale=2.)
 
-                position_kinetic_operator = get_sparse_operator(position_kinetic)
-                self.assertTrue(is_hermitian(position_kinetic_operator))
+                momentum_potential = plane_wave_potential(grid, spinless, fieldlines=dim[1], verbose=verbose)
+                position_potential = dual_basis_potential(grid, spinless, fieldlines=dim[1], verbose=verbose)
+
+                # Confirm they are Hermitian.
+                momentum_potential_operator = (
+                    get_sparse_operator(momentum_potential))
+                self.assertTrue(is_hermitian(momentum_potential_operator))
+
+                position_potential_operator = (
+                    get_sparse_operator(position_potential))
+                self.assertTrue(is_hermitian(position_potential_operator))
 
                 # Diagonalize and confirm the same energy.
-                jw_momentum = jordan_wigner(momentum_kinetic)
-                jw_position = jordan_wigner(position_kinetic)
-                momentum_spectrum = eigenspectrum(jw_momentum, 2 * length)
-                position_spectrum = eigenspectrum(jw_position, 2 * length)
+                jw_momentum = jordan_wigner(momentum_potential)
+                jw_position = jordan_wigner(position_potential)
+                momentum_spectrum = eigenspectrum(jw_momentum)
+                position_spectrum = eigenspectrum(jw_position)
 
                 # Confirm spectra are the same.
                 difference = numpy.amax(
                     numpy.absolute(momentum_spectrum - position_spectrum))
                 self.assertAlmostEqual(difference, 0.)
 
-    def test_potential_integration(self):
-        # Compute potential energy operator in momentum and position space.
-        # Periodic test only.
-        spinless_set = [True]
-        verbose = False
-        
-        # [[spatial dimension, fieldline dimension]]
-        dims = [[2, 2], [2, 3], [3, 3]]
-    
-        for dim in dims:
-            for length in range(2, 6 - dim[0]):
-                for spinless in spinless_set:
-                    grid = Grid(dimensions=dim[0], length=length, scale=2.)
-
-                    momentum_potential = plane_wave_potential(grid, spinless, fieldlines=dim[1], verbose=verbose)
-                    position_potential = dual_basis_potential(grid, spinless, fieldlines=dim[1], verbose=verbose)
-
-                    # Confirm they are Hermitian
-                    momentum_potential_operator = (
-                        get_sparse_operator(momentum_potential))
-                    self.assertTrue(is_hermitian(momentum_potential_operator))
-
-                    position_potential_operator = (
-                        get_sparse_operator(position_potential))
-                    self.assertTrue(is_hermitian(position_potential_operator))
-
-                    # Diagonalize and confirm the same energy.
-                    jw_momentum = jordan_wigner(momentum_potential)
-                    jw_position = jordan_wigner(position_potential)
-                    momentum_spectrum = eigenspectrum(jw_momentum)
-                    position_spectrum = eigenspectrum(jw_position)
-
-                    # Confirm spectra are the same.
-                    difference = numpy.amax(
-                        numpy.absolute(momentum_spectrum - position_spectrum))
-                    self.assertAlmostEqual(difference, 0.)
-
     def test_model_integration(self):
         # Compute Hamiltonian in both momentum and position space.
-        spinless_set = [True]
+        spinless = True
         verbose = False
         
-        # [[spatial dimension, fieldline dimension]]
+        # [[spatial dimension, fieldline dimension]].
         dims = [[2, 2], [2, 3], [3, 3]]
         
         for dim in dims:
+            
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
             for length in range(2, 6 - dim[0]):
-                for spinless in spinless_set:
-                    grid = Grid(dimensions=dim[0], length=length, scale=1.0)
-                    momentum_hamiltonian = jellium_model(grid, spinless, True, fieldlines=dim[1], verbose=verbose)
-                    position_hamiltonian = jellium_model(grid, spinless, False, fieldlines=dim[1], verbose=verbose)
+                grid = Grid(dimensions=dim[0], length=length, scale=1.0)
+                momentum_hamiltonian = jellium_model(grid, spinless, True, fieldlines=dim[1], verbose=verbose)
+                position_hamiltonian = jellium_model(grid, spinless, False, fieldlines=dim[1], verbose=verbose)
 
-                    # Confirm they are Hermitian
-                    momentum_hamiltonian_operator = (
-                        get_sparse_operator(momentum_hamiltonian))
-                    self.assertTrue(is_hermitian(momentum_hamiltonian_operator))
+                # Confirm they are Hermitian
+                momentum_hamiltonian_operator = (
+                    get_sparse_operator(momentum_hamiltonian))
+                self.assertTrue(is_hermitian(momentum_hamiltonian_operator))
 
-                    position_hamiltonian_operator = (
-                        get_sparse_operator(position_hamiltonian))
-                    self.assertTrue(is_hermitian(position_hamiltonian_operator))
+                position_hamiltonian_operator = (
+                    get_sparse_operator(position_hamiltonian))
+                self.assertTrue(is_hermitian(position_hamiltonian_operator))
 
-                    # Diagonalize and confirm the same energy.
-                    jw_momentum = jordan_wigner(momentum_hamiltonian)
-                    jw_position = jordan_wigner(position_hamiltonian)
-                    momentum_spectrum = eigenspectrum(jw_momentum)
-                    position_spectrum = eigenspectrum(jw_position)
+                # Diagonalize and confirm the same energy.
+                jw_momentum = jordan_wigner(momentum_hamiltonian)
+                jw_position = jordan_wigner(position_hamiltonian)
+                momentum_spectrum = eigenspectrum(jw_momentum)
+                position_spectrum = eigenspectrum(jw_position)
 
-                    # Confirm spectra are the same.
-                    difference = numpy.amax(
-                        numpy.absolute(momentum_spectrum - position_spectrum))
-                    self.assertAlmostEqual(difference, 0.)
+                # Confirm spectra are the same.
+                difference = numpy.amax(
+                    numpy.absolute(momentum_spectrum - position_spectrum))
+                self.assertAlmostEqual(difference, 0.)
 
     def test_model_integration_with_constant(self):
         # Compute Hamiltonian in both momentum and position space.
         length_scale = 0.7
-        spinless_set = [True]
+        spinless = True
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
         
         for dim in dims:
+            
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
             for length in range(2, 6 - dim[0]):
-                for spinless in spinless_set:
-                    grid = Grid(dimensions=dim[0], length=length, scale=length_scale)
+                grid = Grid(dimensions=dim[0], length=length, scale=length_scale)
 
-                    # Include Madelung constant in the momentum but not the position
-                    # Hamiltonian.
-                    momentum_hamiltonian = jellium_model(grid, spinless, True,
-                                                         include_constant=True, fieldlines=dim[1])
-                    position_hamiltonian = jellium_model(grid, spinless, False, fieldlines=dim[1])
+                # Include Madelung constant in the momentum but not the position
+                # Hamiltonian.
+                momentum_hamiltonian = jellium_model(grid, spinless, True,
+                                                     include_constant=True, fieldlines=dim[1])
+                position_hamiltonian = jellium_model(grid, spinless, False, fieldlines=dim[1])
 
-                    # Confirm they are Hermitian
-                    momentum_hamiltonian_operator = (
-                        get_sparse_operator(momentum_hamiltonian))
-                    self.assertTrue(is_hermitian(momentum_hamiltonian_operator))
+                # Confirm they are Hermitian.
+                momentum_hamiltonian_operator = (
+                    get_sparse_operator(momentum_hamiltonian))
+                self.assertTrue(is_hermitian(momentum_hamiltonian_operator))
 
-                    position_hamiltonian_operator = (
-                        get_sparse_operator(position_hamiltonian))
-                    self.assertTrue(is_hermitian(position_hamiltonian_operator))
+                position_hamiltonian_operator = (
+                    get_sparse_operator(position_hamiltonian))
+                self.assertTrue(is_hermitian(position_hamiltonian_operator))
 
-                    # Diagonalize and confirm the same energy.
-                    jw_momentum = jordan_wigner(momentum_hamiltonian)
-                    jw_position = jordan_wigner(position_hamiltonian)
-                    momentum_spectrum = eigenspectrum(jw_momentum)
-                    position_spectrum = eigenspectrum(jw_position)
+                # Diagonalize and confirm the same energy.
+                jw_momentum = jordan_wigner(momentum_hamiltonian)
+                jw_position = jordan_wigner(position_hamiltonian)
+                momentum_spectrum = eigenspectrum(jw_momentum)
+                position_spectrum = eigenspectrum(jw_position)
 
-                    # Confirm momentum spectrum is shifted 2.8372/length_scale higher.
-                    max_difference = numpy.amax(momentum_spectrum - position_spectrum)
-                    min_difference = numpy.amax(momentum_spectrum - position_spectrum)
-                    self.assertAlmostEqual(max_difference, 2.8372 / length_scale)
-                    self.assertAlmostEqual(min_difference, 2.8372 / length_scale)
+                # Confirm momentum spectrum is shifted 2.8372/length_scale higher.
+                max_difference = numpy.amax(momentum_spectrum - position_spectrum)
+                min_difference = numpy.amax(momentum_spectrum - position_spectrum)
+                self.assertAlmostEqual(max_difference, 2.8372 / length_scale)
+                self.assertAlmostEqual(min_difference, 2.8372 / length_scale)
 
     def test_coefficients(self):
         # Test that the coefficients post-JW transform are as claimed in paper.
         spinless = True
         non_periodics = [False, True]
         
-        # [[spatial dimension, fieldline dimension]]
+        # [[spatial dimension, fieldline dimension]].
         dims = [[2, 2], [2, 3], [3, 3]]
         
         for dim in dims:
@@ -356,19 +360,18 @@ class JelliumTest(unittest.TestCase):
                                         Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                         V_nu = (
                                             4. * numpy.pi / momenta_squared * (
-                                            Dkv * numpy.log(period_cutoff / r0) * 
-                                            scipy.special.jv(1, Dkv) + 
-                                            scipy.special.jv(0, Dkv) - 1.))
+                                            Dkv * numpy.log(r0 / period_cutoff) * 
+                                            scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
 
                                     else:
-                                        var1 = 0.25 * momenta_squared
-                                        var2 = 4. / momenta_squared
+                                        var1 = 4. / momenta_squared
+                                        var2 = 0.25 * momenta_squared
 
-                                        V_nu = numpy.complex128(1. / 2. * (
-                                               mpmath.meijerg([[-0.5, 0., 0.], []], 
-                                                               [[-0.5, 0.], [-1.]], var1) - 
-                                               mpmath.meijerg([[1., 1.5, 2.], []], 
-                                                               [[1.5], []], var2)))
+                                        V_nu = numpy.complex128(
+                                            mpmath.meijerg([[1., 1.5, 2.], []], 
+                                                           [[1.5], []], var1) -
+                                            mpmath.meijerg([[-0.5, 0., 0.], []], 
+                                                           [[-0.5, 0.], [-1.]], var2))
 
                                 elif fieldlines == 3:
                                     if non_periodic:
@@ -434,19 +437,18 @@ class JelliumTest(unittest.TestCase):
                                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                             V_nu = (
                                                 4. * numpy.pi / momenta_squared * (
-                                                Dkv * numpy.log(period_cutoff / r0) * 
-                                                scipy.special.jv(1, Dkv) + 
-                                                scipy.special.jv(0, Dkv) - 1.))
+                                                Dkv * numpy.log(r0 / period_cutoff) * 
+                                                scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
 
                                         else:
-                                            var1 = 0.25 * momenta_squared
-                                            var2 = 4. / momenta_squared
+                                            var1 = 4. / momenta_squared
+                                            var2 = 0.25 * momenta_squared
 
-                                            V_nu = numpy.complex128(1. / 2. * (
-                                                   mpmath.meijerg([[-0.5, 0., 0.], []], 
-                                                                   [[-0.5, 0.], [-1.]], var1) - 
-                                                   mpmath.meijerg([[1., 1.5, 2.], []], 
-                                                                   [[1.5], []], var2)))
+                                            V_nu = numpy.complex128(
+                                                mpmath.meijerg([[1., 1.5, 2.], []], 
+                                                               [[1.5], []], var1) -
+                                                mpmath.meijerg([[-0.5, 0., 0.], []], 
+                                                               [[-0.5, 0.], [-1.]], var2))
 
                                     elif fieldlines == 3:
                                         if non_periodic:
@@ -534,19 +536,18 @@ class JelliumTest(unittest.TestCase):
                                                             numpy.sqrt(momenta_squared))
                                                         V_nu = (
                                                             4. * numpy.pi / momenta_squared * (
-                                                            Dkv * numpy.log(period_cutoff / r0) * 
-                                                            scipy.special.jv(1, Dkv) + 
-                                                            scipy.special.jv(0, Dkv) - 1.))
+                                                            Dkv * numpy.log(r0 / period_cutoff) * 
+                                                            scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
 
                                                     else:
-                                                        var1 = 0.25 * momenta_squared
-                                                        var2 = 4. / momenta_squared
+                                                        var1 = 4. / momenta_squared
+                                                        var2 = 0.25 * momenta_squared
 
-                                                        V_nu = numpy.complex128(1. / 2. * (
-                                                               mpmath.meijerg([[-0.5, 0., 0.], []], 
-                                                                               [[-0.5, 0.], [-1.]], var1) - 
-                                                               mpmath.meijerg([[1., 1.5, 2.], []], 
-                                                                               [[1.5], []], var2)))
+                                                        V_nu = numpy.complex128(
+                                                            mpmath.meijerg([[1., 1.5, 2.], []], 
+                                                                           [[1.5], []], var1) -
+                                                            mpmath.meijerg([[-0.5, 0., 0.], []], 
+                                                                           [[-0.5, 0.], [-1.]], var2))
 
                                                 elif fieldlines == 3:
                                                     if non_periodic:
@@ -568,81 +569,87 @@ class JelliumTest(unittest.TestCase):
 
     def test_jordan_wigner_dual_basis_jellium(self):
         # Parameters.
-        spinless_set = [True]
+        spinless = True
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
         
         for dim in dims:
-            for length in range(2, 6 - dim[0]):
-                for spinless in spinless_set:
-                    grid = Grid(dimensions=dim[0], length=length, scale=1.)
             
-                    # Compute fermionic Hamiltonian. Include then subtract constant.
-                    fermion_hamiltonian = dual_basis_jellium_model(
-                        grid, spinless, include_constant=True, fieldlines=dim[1])
-                    qubit_hamiltonian = jordan_wigner(fermion_hamiltonian)
-                    qubit_hamiltonian -= QubitOperator((), 2.8372)
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
+            for length in range(2, 6 - dim[0]):
+                grid = Grid(dimensions=dim[0], length=length, scale=1.)
 
-                    # Compute Jordan-Wigner Hamiltonian.
-                    test_hamiltonian = jordan_wigner_dual_basis_jellium(grid, spinless, fieldlines=dim[1])
+                # Compute fermionic Hamiltonian. Include then subtract constant.
+                fermion_hamiltonian = dual_basis_jellium_model(
+                    grid, spinless, include_constant=True, fieldlines=dim[1])
+                qubit_hamiltonian = jordan_wigner(fermion_hamiltonian)
+                qubit_hamiltonian -= QubitOperator((), 2.8372)
 
-                    # Make sure Hamiltonians are the same.
-                    self.assertTrue(test_hamiltonian == qubit_hamiltonian)
+                # Compute Jordan-Wigner Hamiltonian.
+                test_hamiltonian = jordan_wigner_dual_basis_jellium(grid, spinless, fieldlines=dim[1])
 
-                    # Check number of terms.
-                    n_qubits = count_qubits(qubit_hamiltonian)
+                # Make sure Hamiltonians are the same.
+                self.assertTrue(test_hamiltonian == qubit_hamiltonian)
 
-                    if spinless:
-                        paper_n_terms = 1 - .5 * n_qubits + 1.5 * (n_qubits ** 2)
+                # Check number of terms.
+                n_qubits = count_qubits(qubit_hamiltonian)
 
-                    num_nonzeros = sum(1 for coeff in qubit_hamiltonian.terms.values() if
-                                       coeff != 0.0)
+                if spinless:
+                    paper_n_terms = 1 - .5 * n_qubits + 1.5 * (n_qubits ** 2)
 
-                    self.assertTrue(num_nonzeros <= paper_n_terms)
+                num_nonzeros = sum(1 for coeff in qubit_hamiltonian.terms.values() if
+                                   coeff != 0.0)
+
+                self.assertTrue(num_nonzeros <= paper_n_terms)
 
     def test_jordan_wigner_dual_basis_jellium_constant_shift(self):
-        spinless_set = [True]
+        spinless = True
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
         length_scale = 0.6
         
         for dim in dims:
+            
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
             for length in range(2, 6 - dim[0]):
-                for spinless in spinless_set:
-                    grid = Grid(dimensions=dim[0], length=length, scale=length_scale)
-                    hamiltonian_without_constant = jordan_wigner_dual_basis_jellium(
-                        grid, spinless, include_constant=False, fieldlines=dim[1])
-                    hamiltonian_with_constant = jordan_wigner_dual_basis_jellium(
-                        grid, spinless, include_constant=True, fieldlines=dim[1])
+                grid = Grid(dimensions=dim[0], length=length, scale=length_scale)
+                hamiltonian_without_constant = jordan_wigner_dual_basis_jellium(
+                    grid, spinless, include_constant=False, fieldlines=dim[1])
+                hamiltonian_with_constant = jordan_wigner_dual_basis_jellium(
+                    grid, spinless, include_constant=True, fieldlines=dim[1])
 
-                    difference = hamiltonian_with_constant - hamiltonian_without_constant
-                    expected = QubitOperator('') * (2.8372 / length_scale)
+                difference = hamiltonian_with_constant - hamiltonian_without_constant
+                expected = QubitOperator('') * (2.8372 / length_scale)
 
-                    self.assertTrue(expected == difference)
+                self.assertTrue(expected == difference)
 
     def test_plane_wave_energy_cutoff(self):
-        spinless_set = [True]
+        spinless = True
         
         # [[spatial dimension, fieldline dimension]]
         dims = [[2, 2], [2, 3], [3, 3]]
         e_cutoff = 20.0
 
         for dim in dims:
+            
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
             for length in range(2, 6 - dim[0]):
-                for spinless in spinless_set:
-                    grid = Grid(dimensions=dim[0], length=length, scale=1.0)
-                    hamiltonian_1 = jellium_model(grid, spinless, True, False, fieldlines=dim[1])
-                    jw_1 = jordan_wigner(hamiltonian_1)
-                    spectrum_1 = eigenspectrum(jw_1)
+                grid = Grid(dimensions=dim[0], length=length, scale=1.0)
+                hamiltonian_1 = jellium_model(grid, spinless, True, False, fieldlines=dim[1])
+                jw_1 = jordan_wigner(hamiltonian_1)
+                spectrum_1 = eigenspectrum(jw_1)
 
-                    hamiltonian_2 = jellium_model(grid, spinless, True, False, e_cutoff, fieldlines=dim[1])
-                    jw_2 = jordan_wigner(hamiltonian_2)
-                    spectrum_2 = eigenspectrum(jw_2)
+                hamiltonian_2 = jellium_model(grid, spinless, True, False, e_cutoff, fieldlines=dim[1])
+                jw_2 = jordan_wigner(hamiltonian_2)
+                spectrum_2 = eigenspectrum(jw_2)
 
-                    max_diff = numpy.amax(numpy.absolute(spectrum_1 - spectrum_2))
-                    self.assertGreater(max_diff, 0.)
+                max_diff = numpy.amax(numpy.absolute(spectrum_1 - spectrum_2))
+                self.assertGreater(max_diff, 0.)
 
         
     ## My edits.
@@ -651,7 +658,6 @@ class JelliumTest(unittest.TestCase):
         # TODO: After figuring out the correct formula for period cutoff for
         #     dual basis, change period_cutoff to default, and change
         #     hamiltonian_1 to a real jellium_model for real integration test.
-        
         spinless = True
         
         # [[spatial dimension, fieldline dimension]]
@@ -695,7 +701,7 @@ class JelliumTest(unittest.TestCase):
                     get_sparse_operator(position_hamiltonian))
                 self.assertTrue(is_hermitian(position_hamiltonian_operator))
 
-                # Diagonalize and confirm the same energy.
+                # Diagonalize.
                 jw_momentum = jordan_wigner(momentum_hamiltonian)
                 jw_position = jordan_wigner(position_hamiltonian)
                 momentum_spectrum = eigenspectrum(jw_momentum)
@@ -716,10 +722,11 @@ class JelliumTest(unittest.TestCase):
         dims = [[2, 2], [2, 3], [3, 3]]
         
         for dim in dims:
+            
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
             for length in range(2, 6 - dim[0]):
                 grid = Grid(dimensions=dim[0], length=length, scale=1.)
-
-                # min period cutoff is scale * [( length - 1 )/length] * [1/( length - 1 )] == [ scale/length ]
                 period_cutoff = grid.volume_scale() ** (1. / grid.dimensions) / 2.
 
                 momentum_potential = plane_wave_potential(grid, spinless=spinless, e_cutoff=None, 

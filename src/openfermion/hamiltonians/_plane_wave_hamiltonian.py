@@ -220,23 +220,22 @@ def dual_basis_external_potential(grid, geometry, spinless,
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
                                 4. * numpy.pi / momenta_squared * (
-                                Dkv * numpy.log(period_cutoff / r0) * 
-                                scipy.special.jv(1, Dkv) + 
-                                scipy.special.jv(0, Dkv) - 1.))
+                                Dkv * numpy.log(r0 / period_cutoff) * 
+                                scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                             
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}\n'.format(period_cutoff))
 
                         else:
-                            var1 = 0.25 * momenta_squared
-                            var2 = 4. / momenta_squared
+                            var1 = 4. / momenta_squared
+                            var2 = 0.25 * momenta_squared
 
-                            V_nu = numpy.complex128(1. / 2. * (
-                                   mpmath.meijerg([[-0.5, 0., 0.], []], 
-                                                   [[-0.5, 0.], [-1.]], var1) - 
-                                   mpmath.meijerg([[1., 1.5, 2.], []], 
-                                                   [[1.5], []], var2)))
+                            V_nu = numpy.complex128(
+                                mpmath.meijerg([[1., 1.5, 2.], []], 
+                                               [[1.5], []], var1) -
+                                mpmath.meijerg([[-0.5, 0., 0.], []], 
+                                               [[-0.5, 0.], [-1.]], var2))
 
                     elif fieldlines == 3:
                         if non_periodic:
@@ -490,23 +489,22 @@ def jordan_wigner_dual_basis_hamiltonian(grid, geometry=None, spinless=False,
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
                                 4. * numpy.pi / momenta_squared * (
-                                Dkv * numpy.log(period_cutoff / r0) * 
-                                scipy.special.jv(1, Dkv) + 
-                                scipy.special.jv(0, Dkv) - 1.))
+                                Dkv * numpy.log(r0 / period_cutoff) * 
+                                scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                             
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}\n'.format(period_cutoff))
                         
                         else:
-                            var1 = 0.25 * momenta_squared
-                            var2 = 4. / momenta_squared
+                            var1 = 4. / momenta_squared
+                            var2 = 0.25 * momenta_squared
 
-                            V_nu = numpy.complex128(1. / 2. * (
-                                   mpmath.meijerg([[-0.5, 0., 0.], []], 
-                                                   [[-0.5, 0.], [-1.]], var1) - 
-                                   mpmath.meijerg([[1., 1.5, 2.], []], 
-                                                   [[1.5], []], var2)))
+                            V_nu = numpy.complex128(
+                                mpmath.meijerg([[1., 1.5, 2.], []], 
+                                               [[1.5], []], var1) -
+                                mpmath.meijerg([[-0.5, 0., 0.], []], 
+                                               [[-0.5, 0.], [-1.]], var2))
                             
                     elif fieldlines == 3:
                         if non_periodic:
