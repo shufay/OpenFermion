@@ -356,7 +356,7 @@ class JelliumTest(unittest.TestCase):
                                     if non_periodic:
                                         # Set zero reference length scale for the potential. 
                                         # For now, we take the reference length scale as the length of cell.
-                                        r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                                        r0 = 1e8
                                         Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                         V_nu = (
                                             4. * numpy.pi / momenta_squared * (
@@ -433,7 +433,7 @@ class JelliumTest(unittest.TestCase):
                                         if non_periodic:
                                             # Set zero reference length scale for the potential. 
                                             # For now, we take the reference length scale as the length of cell.
-                                            r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                                            r0 = 1e8
                                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                             V_nu = (
                                                 4. * numpy.pi / momenta_squared * (
@@ -528,9 +528,7 @@ class JelliumTest(unittest.TestCase):
                                                     if non_periodic:
                                                         # Set zero reference length scale for the potential. 
                                                         # For now, we take the reference length scale as the length of cell.
-                                                        r0 = (
-                                                            grid.volume_scale() ** 
-                                                            (1. / grid.dimensions))
+                                                        r0 = 1e8
                                                         Dkv = (
                                                             period_cutoff * 
                                                             numpy.sqrt(momenta_squared))

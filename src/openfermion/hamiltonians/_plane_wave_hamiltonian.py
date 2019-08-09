@@ -216,7 +216,7 @@ def dual_basis_external_potential(grid, geometry, spinless,
                             # Set zero reference length scale for the 
                             # potential. For now, we take the reference 
                             # length scale as the length of cell.
-                            r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                            r0 = 1e8
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
                                 4. * numpy.pi / momenta_squared * (
@@ -485,7 +485,7 @@ def jordan_wigner_dual_basis_hamiltonian(grid, geometry=None, spinless=False,
                             
                             # Set zero reference length scale for the potential. 
                             # For now, we take the reference length scale as the length of cell.
-                            r0 = grid.volume_scale() ** (1. / grid.dimensions)
+                            r0 = 1e8
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
                                 4. * numpy.pi / momenta_squared * (
