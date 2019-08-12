@@ -10,7 +10,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-"""Construct Hamiltonians in plan wave basis and its dual in 3D."""
+"""Construct Hamiltonians in plane wave basis and its dual in 3D."""
 from __future__ import absolute_import
 
 import openfermion.utils._operator_utils
@@ -18,6 +18,10 @@ import openfermion.utils._operator_utils
 from openfermion.hamiltonians._jellium import *
 from openfermion.hamiltonians._molecular_data import periodic_hash_table
 from openfermion.ops import FermionOperator, QubitOperator
+
+# Define constant reference point for 2D electrostatic interactions.
+# This sets the zero reference length scale for the potential. 
+R0 = 1e-8
 
 def center(grid, geometry, verbose=False):
     """Centers the molecule in the supercell.
@@ -212,15 +216,10 @@ def dual_basis_external_potential(grid, geometry, spinless,
                     
                     if fieldlines == 2:
                         if non_periodic:
-                            
-                            # Set zero reference length scale for the 
-                            # potential. For now, we take the reference 
-                            # length scale as the length of cell.
-                            r0 = 1e8
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
                                 4. * numpy.pi / momenta_squared * (
-                                Dkv * numpy.log(r0 / period_cutoff) * 
+                                Dkv * numpy.log(R0 / period_cutoff) * 
                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                             
                             if verbose:
@@ -482,14 +481,10 @@ def jordan_wigner_dual_basis_hamiltonian(grid, geometry=None, spinless=False,
 
                     if fieldlines == 2:
                         if non_periodic:
-                            
-                            # Set zero reference length scale for the potential. 
-                            # For now, we take the reference length scale as the length of cell.
-                            r0 = 1e8
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
                                 4. * numpy.pi / momenta_squared * (
-                                Dkv * numpy.log(r0 / period_cutoff) * 
+                                Dkv * numpy.log(R0 / period_cutoff) * 
                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                             
                             if verbose:

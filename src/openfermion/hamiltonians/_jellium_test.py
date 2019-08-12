@@ -21,6 +21,9 @@ from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.transforms import get_sparse_operator, jordan_wigner
 from openfermion.utils import count_qubits, eigenspectrum, Grid, is_hermitian
 
+# Define constant reference point for 2D electrostatic interactions.
+# This sets the zero reference length scale for the potential. 
+R0 = 1e-8
 
 class WignerSeitzRadiusTest(unittest.TestCase):
 
@@ -354,13 +357,10 @@ class JelliumTest(unittest.TestCase):
 
                                 if fieldlines == 2:
                                     if non_periodic:
-                                        # Set zero reference length scale for the potential. 
-                                        # For now, we take the reference length scale as the length of cell.
-                                        r0 = 1e8
                                         Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                         V_nu = (
                                             4. * numpy.pi / momenta_squared * (
-                                            Dkv * numpy.log(r0 / period_cutoff) * 
+                                            Dkv * numpy.log(R0 / period_cutoff) * 
                                             scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
 
                                     else:
@@ -431,13 +431,10 @@ class JelliumTest(unittest.TestCase):
 
                                     if fieldlines == 2:
                                         if non_periodic:
-                                            # Set zero reference length scale for the potential. 
-                                            # For now, we take the reference length scale as the length of cell.
-                                            r0 = 1e8
                                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                             V_nu = (
                                                 4. * numpy.pi / momenta_squared * (
-                                                Dkv * numpy.log(r0 / period_cutoff) * 
+                                                Dkv * numpy.log(R0 / period_cutoff) * 
                                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
 
                                         else:
@@ -526,15 +523,12 @@ class JelliumTest(unittest.TestCase):
 
                                                 if fieldlines == 2:
                                                     if non_periodic:
-                                                        # Set zero reference length scale for the potential. 
-                                                        # For now, we take the reference length scale as the length of cell.
-                                                        r0 = 1e8
                                                         Dkv = (
                                                             period_cutoff * 
                                                             numpy.sqrt(momenta_squared))
                                                         V_nu = (
                                                             4. * numpy.pi / momenta_squared * (
-                                                            Dkv * numpy.log(r0 / period_cutoff) * 
+                                                            Dkv * numpy.log(R0 / period_cutoff) * 
                                                             scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
 
                                                     else:

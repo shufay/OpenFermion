@@ -19,6 +19,9 @@ from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.utils._grid import Grid
 import openfermion.utils._operator_utils
 
+# Define constant reference point for 2D electrostatic interactions.
+# This sets the zero reference length scale for the potential. 
+R0 = 1e-8
 
 def wigner_seitz_length_scale(wigner_seitz_radius, n_particles, dimension):
     """Function to give length_scale associated with Wigner-Seitz radius.
@@ -220,14 +223,10 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
             
             if fieldlines == 2:
                 if non_periodic:
-                        
-                    # Set zero reference length scale for the potential. 
-                    # For now, we take the reference length scale as the length of cell.
-                    r0 = 1e8
                     Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                     V_nu = (
                         4. * numpy.pi / momenta_squared * (
-                        Dkv * numpy.log(r0 / period_cutoff) * 
+                        Dkv * numpy.log(R0 / period_cutoff) * 
                         scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                     
                     if verbose:
@@ -476,15 +475,10 @@ def dual_basis_jellium_model(grid, spinless=False,
 
                     if fieldlines == 2:
                         if non_periodic:
-                            
-                            # Set zero reference length scale for the potential. 
-                            # For now, we take the reference length scale as 
-                            # the length of cell.
-                            r0 = 1e8
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
                                 4. * numpy.pi / momenta_squared * (
-                                Dkv * numpy.log(r0 / period_cutoff) * 
+                                Dkv * numpy.log(R0 / period_cutoff) * 
                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                             
                             if verbose:
@@ -779,14 +773,10 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
 
             if fieldlines == 2:
                 if non_periodic:
-                    
-                    # Set zero reference length scale for the potential. 
-                    # For now, we take the reference length scale as the length of cell.
-                    r0 = 1e8
                     Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                     V_nu = (
                         4. * numpy.pi / momenta_squared * (
-                        Dkv * numpy.log(r0 / period_cutoff) * 
+                        Dkv * numpy.log(R0 / period_cutoff) * 
                         scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                     
                     if verbose:
@@ -903,15 +893,10 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
         
                     if fieldlines == 2:
                         if non_periodic:
-                            
-                            # Set zero reference length scale for the potential. 
-                            # For now, we take the reference length scale as the length of cell.
-                            #r0 = grid.volume_scale() ** (1. / grid.dimensions)
-                            r0 = 1e8
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
                                 4. * numpy.pi / momenta_squared * (
-                                Dkv * numpy.log(r0 / period_cutoff) * 
+                                Dkv * numpy.log(R0 / period_cutoff) * 
                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                             
                             if verbose:
