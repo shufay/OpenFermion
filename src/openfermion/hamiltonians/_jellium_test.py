@@ -20,10 +20,7 @@ from openfermion.hamiltonians._jellium import *
 from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.transforms import get_sparse_operator, jordan_wigner
 from openfermion.utils import count_qubits, eigenspectrum, Grid, is_hermitian
-
-# Define constant reference point for 2D electrostatic interactions.
-# This sets the zero reference length scale for the potential. 
-R0 = 1e-8
+from openfermion.hamiltonians._constants import R0
 
 class WignerSeitzRadiusTest(unittest.TestCase):
 

@@ -18,10 +18,7 @@ import openfermion.utils._operator_utils
 from openfermion.hamiltonians._jellium import *
 from openfermion.hamiltonians._molecular_data import periodic_hash_table
 from openfermion.ops import FermionOperator, QubitOperator
-
-# Define constant reference point for 2D electrostatic interactions.
-# This sets the zero reference length scale for the potential. 
-R0 = 1e-8
+from openfermion.hamiltonians._constants import R0
 
 def center(grid, geometry, verbose=False):
     """Centers the molecule in the supercell.
@@ -225,6 +222,7 @@ def dual_basis_external_potential(grid, geometry, spinless,
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}\n'.format(period_cutoff))
+                                print('RO = {}'.format(R0))
 
                         else:
                             var1 = 4. / momenta_squared
@@ -490,6 +488,7 @@ def jordan_wigner_dual_basis_hamiltonian(grid, geometry=None, spinless=False,
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}\n'.format(period_cutoff))
+                                print('RO = {}'.format(R0))
                         
                         else:
                             var1 = 4. / momenta_squared

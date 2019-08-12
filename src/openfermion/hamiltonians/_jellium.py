@@ -18,10 +18,7 @@ import numpy, mpmath, scipy
 from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.utils._grid import Grid
 import openfermion.utils._operator_utils
-
-# Define constant reference point for 2D electrostatic interactions.
-# This sets the zero reference length scale for the potential. 
-R0 = 1e-8
+from openfermion.hamiltonians._constants import R0
 
 def wigner_seitz_length_scale(wigner_seitz_radius, n_particles, dimension):
     """Function to give length_scale associated with Wigner-Seitz radius.
@@ -232,6 +229,7 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                     if verbose:
                         print('non-periodic')
                         print('cutoff: {}\n'.format(period_cutoff))
+                        print('RO = {}'.format(R0))
                     
                 else:
                     var1 = 4. / momenta_squared
@@ -484,6 +482,7 @@ def dual_basis_jellium_model(grid, spinless=False,
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}\n'.format(period_cutoff))
+                                print('RO = {}'.format(R0))
                         
                         else:
                             var1 = 4. / momenta_squared
@@ -782,6 +781,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                     if verbose:
                         print('non-periodic')
                         print('cutoff: {}'.format(period_cutoff))
+                        print('RO = {}'.format(R0))
 
                 else:
                     var1 = 4. / momenta_squared
@@ -902,6 +902,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}'.format(period_cutoff))
+                                print('RO = {}'.format(R0))
 
                         else:
                             var1 = 4. / momenta_squared
