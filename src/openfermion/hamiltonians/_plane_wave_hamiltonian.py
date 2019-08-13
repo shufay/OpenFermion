@@ -18,7 +18,6 @@ import openfermion.utils._operator_utils
 from openfermion.hamiltonians._jellium import *
 from openfermion.hamiltonians._molecular_data import periodic_hash_table
 from openfermion.ops import FermionOperator, QubitOperator
-from openfermion.hamiltonians._constants import R0
 
 def center(grid, geometry, verbose=False):
     """Centers the molecule in the supercell.
@@ -89,7 +88,7 @@ def center(grid, geometry, verbose=False):
 
 def dual_basis_external_potential(grid, geometry, spinless,
                                   non_periodic=False, period_cutoff=None, 
-                                  fieldlines=3, verbose=False):
+                                  fieldlines=3, R0=1e8, verbose=False):
     """Return the external potential in the dual basis of arXiv:1706.00023.
 
     The external potential resulting from electrons interacting with nuclei
@@ -109,6 +108,7 @@ def dual_basis_external_potential(grid, geometry, spinless,
         period_cutoff (float): Period cutoff, default to
                                grid.volume_scale() ** (1. / grid.dimensions)
         fieldlines (int): Spatial dimension for electric field lines. 
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
@@ -282,7 +282,7 @@ def dual_basis_external_potential(grid, geometry, spinless,
 
 def plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None,
                                   non_periodic=False, period_cutoff=None, 
-                                  fieldlines=3, verbose=False):
+                                  fieldlines=3, R0=1e8, verbose=False):
     """Return the external potential operator in plane wave basis.
 
     The external potential resulting from electrons interacting with nuclei.
@@ -302,6 +302,7 @@ def plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None,
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions)
         fieldlines (int): Spatial dimension for electric field lines. 
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
@@ -309,7 +310,7 @@ def plane_wave_external_potential(grid, geometry, spinless, e_cutoff=None,
     """
     dual_basis_operator = dual_basis_external_potential(
         grid, geometry, spinless, non_periodic, 
-        period_cutoff, fieldlines, verbose)
+        period_cutoff, fieldlines, R0, verbose)
     
     operator = (openfermion.utils.inverse_fourier_transform(
         dual_basis_operator, grid, spinless))
@@ -329,7 +330,7 @@ def plane_wave_hamiltonian(grid, geometry=None,
                            spinless=False, plane_wave=True,
                            include_constant=False, e_cutoff=None,
                            non_periodic=False, period_cutoff=None, 
-                           ft=False, fieldlines=3, verbose=False):
+                           ft=False, fieldlines=3, R0=1e8, verbose=False):
     """Returns Hamiltonian as FermionOperator class.
 
     Args:
@@ -348,6 +349,7 @@ def plane_wave_hamiltonian(grid, geometry=None,
         ft (bool): Whether to use the Fourier Transform of the dual basis
                    potentials as the plane wave potentials.
         fieldlines (int): Spatial dimension for electric field lines. 
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.
 
     Returns:
@@ -358,7 +360,7 @@ def plane_wave_hamiltonian(grid, geometry=None,
 
     jellium_op = jellium_model(grid, spinless, plane_wave, include_constant,
                                e_cutoff, non_periodic, period_cutoff, ft, 
-                               fieldlines, verbose)
+                               fieldlines, R0, verbose)
 
     if geometry is None:
         return jellium_op
@@ -372,11 +374,11 @@ def plane_wave_hamiltonian(grid, geometry=None,
     if plane_wave:
         external_potential = plane_wave_external_potential(
             grid, geometry, spinless, e_cutoff, non_periodic, 
-            period_cutoff, fieldlines, verbose)
+            period_cutoff, fieldlines, R0, verbose)
     else:
         external_potential = dual_basis_external_potential(
             grid, geometry, spinless, non_periodic, 
-            period_cutoff, fieldlines, verbose)
+            period_cutoff, fieldlines, R0, verbose)
 
     return jellium_op + external_potential
 
@@ -385,7 +387,7 @@ def plane_wave_hamiltonian(grid, geometry=None,
 def jordan_wigner_dual_basis_hamiltonian(grid, geometry=None, spinless=False,
                                          include_constant=False,
                                          non_periodic=False, period_cutoff=None,
-                                         fieldlines=3, verbose=False):
+                                         fieldlines=3, R0=1e8, verbose=False):
     """Return the dual basis Hamiltonian as QubitOperator.
 
     Args:
@@ -399,6 +401,7 @@ def jordan_wigner_dual_basis_hamiltonian(grid, geometry=None, spinless=False,
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions)
         fieldlines (int): Spatial dimension for electric field lines. 
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.
 
     Returns:
@@ -409,7 +412,7 @@ def jordan_wigner_dual_basis_hamiltonian(grid, geometry=None, spinless=False,
 
     jellium_op = jordan_wigner_dual_basis_jellium(
         grid, spinless, include_constant, non_periodic=non_periodic, 
-        period_cutoff=period_cutoff, fieldlines=fieldlines, verbose=verbose)
+        period_cutoff=period_cutoff, fieldlines=fieldlines, R0=R0, verbose=verbose)
 
     if geometry is None:
         return jellium_op

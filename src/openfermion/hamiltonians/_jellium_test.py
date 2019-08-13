@@ -20,7 +20,6 @@ from openfermion.hamiltonians._jellium import *
 from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.transforms import get_sparse_operator, jordan_wigner
 from openfermion.utils import count_qubits, eigenspectrum, Grid, is_hermitian
-from openfermion.hamiltonians._constants import R0
 
 class WignerSeitzRadiusTest(unittest.TestCase):
 
@@ -295,6 +294,7 @@ class JelliumTest(unittest.TestCase):
         
         # [[spatial dimension, fieldline dimension]].
         dims = [[2, 2], [2, 3], [3, 3]]
+        R0 = 1e8
         
         for dim in dims:
             for length in range(2, 6 - dim[0]):

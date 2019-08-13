@@ -18,7 +18,6 @@ import numpy, mpmath, scipy
 from openfermion.ops import FermionOperator, QubitOperator
 from openfermion.utils._grid import Grid
 import openfermion.utils._operator_utils
-from openfermion.hamiltonians._constants import R0
 
 def wigner_seitz_length_scale(wigner_seitz_radius, n_particles, dimension):
     """Function to give length_scale associated with Wigner-Seitz radius.
@@ -131,7 +130,7 @@ def plane_wave_potential_v2(grid, spinless=False, e_cutoff=None,
 
 def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                          non_periodic=False, period_cutoff=None,
-                         fieldlines=3, verbose=False):
+                         fieldlines=3, R0=1e8, verbose=False):
     """Return the e-e potential operator in the plane wave basis.
 
     Args:
@@ -142,6 +141,7 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
         fieldlines (int): Spatial dimension for electric field lines. 
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
@@ -301,7 +301,7 @@ def dual_basis_jellium_model(grid, spinless=False,
                              kinetic=True, potential=True,
                              include_constant=False,
                              non_periodic=False, period_cutoff=None, 
-                             fieldlines=3, verbose=False):
+                             fieldlines=3, R0=1e8, verbose=False):
     """Return jellium Hamiltonian in the dual basis of arXiv:1706.00023
 
     Args:
@@ -315,7 +315,8 @@ def dual_basis_jellium_model(grid, spinless=False,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
-        fieldlines (int): Spatial dimension for electric field lines. 
+        fieldlines (int): Spatial dimension for electric field lines.
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
@@ -610,7 +611,7 @@ def dual_basis_kinetic(grid, spinless=False):
 
 
 def dual_basis_potential(grid, spinless=False, non_periodic=False,
-                         period_cutoff=None, fieldlines=3, verbose=False):
+                         period_cutoff=None, fieldlines=3, R0=1e8, verbose=False):
     """Return the potential operator in the dual basis of arXiv:1706.00023
 
     Args:
@@ -619,14 +620,15 @@ def dual_basis_potential(grid, spinless=False, non_periodic=False,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
-        fieldlines (int): Spatial dimension for electric field lines. 
+        fieldlines (int): Spatial dimension for electric field lines.
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
         operator (FermionOperator)
     """
     operator = dual_basis_jellium_model(grid, spinless, False, True, False,
-                                    non_periodic, period_cutoff, fieldlines, verbose)
+                                    non_periodic, period_cutoff, fieldlines, R0, verbose)
     
     '''
     normal_ordered_op = openfermion.normal_ordered(operator)
@@ -641,7 +643,7 @@ def dual_basis_potential(grid, spinless=False, non_periodic=False,
 def jellium_model(grid, spinless=False, plane_wave=True,
                   include_constant=False, e_cutoff=None,
                   non_periodic=False, period_cutoff=None, 
-                  ft=False, fieldlines=3, verbose=False):
+                  ft=False, fieldlines=3, R0=1e8, verbose=False):
     """Return jellium Hamiltonian as FermionOperator class.
 
     Args:
@@ -659,6 +661,7 @@ def jellium_model(grid, spinless=False, plane_wave=True,
         ft (bool): Whether to use the Fourier Transform of the dual basis
                    potentials as the plane wave potentials.
         fieldlines (int): Spatial dimension for electric field lines. 
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.
 
     Returns:
@@ -673,12 +676,12 @@ def jellium_model(grid, spinless=False, plane_wave=True,
                 grid, spinless, e_cutoff, non_periodic, period_cutoff, verbose)
         else:
             hamiltonian += plane_wave_potential(
-                grid, spinless, e_cutoff, non_periodic, period_cutoff, fieldlines, verbose)
+                grid, spinless, e_cutoff, non_periodic, period_cutoff, fieldlines, R0, verbose)
     
     else:
         hamiltonian = dual_basis_jellium_model(
             grid, spinless, True, True, include_constant, non_periodic,
-            period_cutoff, fieldlines, verbose)
+            period_cutoff, fieldlines, R0, verbose)
         
     # Include the Madelung constant if requested.
     if include_constant:
@@ -691,7 +694,7 @@ def jellium_model(grid, spinless=False, plane_wave=True,
 def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                                      include_constant=False, 
                                      non_periodic=False, period_cutoff=None,
-                                     fieldlines=3, verbose=False):
+                                     fieldlines=3, R0=1e8, verbose=False):
     """Return the jellium Hamiltonian as QubitOperator in the dual basis.
 
     Args:
@@ -704,6 +707,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
         fieldlines (int): Spatial dimension for electric field lines. 
+        R0 (float): Reference length scale where the 2D potential is zero.
         verbose (bool): Whether to turn on print statements.
 
     Returns:
