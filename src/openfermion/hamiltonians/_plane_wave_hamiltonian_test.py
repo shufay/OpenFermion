@@ -281,3 +281,79 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                     difference = numpy.amax(
                         numpy.absolute(momentum_spectrum - position_spectrum))
                     self.assertAlmostEqual(difference, 0.)
+                    
+    def test_centering(self):
+        verbose = True
+        
+        '''
+        Key: Spatial dimension.
+        Value: List of geometries.
+        '''
+        geometry_sets = {
+                    2: [[('H', (0., 0.)), ('H', (0.8, 0.))], 
+                        [('H', (0.1, 0.))]], 
+                    3: [[('H', (0., 0., 0.)), ('H', (0.8, 0., 0.))], 
+                        [('H', (0.1, 0., 0.))]]
+                  }
+        
+        '''
+        Key: Grid length.
+        Value: List of correct centered atom coordinates for the 2D 
+            molecules in geometry_sets.
+        '''
+        correct_centers_2D = {
+                    2: [[('H', (-0.9, -0.5)), ('H', (-0.1, -0.5))],
+                        [('H', (-0.5, -0.5))]], 
+                    3: [[('H', (-0.4, 0.)), ('H', (0.4, 0.))],
+                        [('H', (0., 0.))]]
+                  } 
+        
+        '''
+        Key: Grid length.
+        Value: List of correct centered atom coordinates for the 3D
+            molecules in geometry_sets.
+        '''
+        correct_centers_3D = {
+                    2: [[('H', (-0.9, -0.5, -0.5)), ('H', (-0.1, -0.5, -0.5))],
+                        [('H', (-0.5, -0.5, -0.5))]],
+                    3: [[('H', (-0.4, 0., 0.)), ('H', (0.4, 0., 0.))],
+                        [('H', (0., 0., 0.))]]
+                  }
+        
+        # Test 2D centering.
+        for i, geometry in enumerate(geometry_sets[2]):
+            for length in range(2, 4):
+                
+                # Create grid with length = scale for simplicity.
+                grid = Grid(dimensions=2, scale=float(length), length=length)
+                test_center = center(grid, geometry, verbose)
+                correct_center = correct_centers_2D[length][i]
+                
+                # Check that centered coordinates and names of atoms agree.
+                for j, atom in enumerate(test_center):
+                    test_atom_coords = numpy.array(atom[1])
+                    correct_atom_coords = numpy.array(correct_center[j][1])
+                    diff = numpy.amax(
+                        numpy.absolute(
+                            test_atom_coords - correct_atom_coords))
+                    self.assertAlmostEqual(diff, 0.)
+                    self.assertTrue(atom[0] == geometry[j][0])
+                
+       # Test 3D centering.
+        for i, geometry in enumerate(geometry_sets[3]):
+            for length in range(2, 4):
+                
+                # Create grid with length = scale for simplicity.
+                grid = Grid(dimensions=3, scale=float(length), length=length)
+                test_center = center(grid, geometry, verbose)
+                correct_center = correct_centers_3D[length][i]
+                
+                # Check that centered coordinates and names of atoms agree.
+                for j, atom in enumerate(test_center):
+                    test_atom_coords = numpy.array(atom[1])
+                    correct_atom_coords = numpy.array(correct_center[j][1])
+                    diff = numpy.amax(
+                        numpy.absolute(
+                            test_atom_coords - correct_atom_coords))
+                    self.assertAlmostEqual(diff, 0.)
+                    self.assertTrue(atom[0] == geometry[j][0])
