@@ -88,46 +88,6 @@ def plane_wave_kinetic(grid, spinless=False, e_cutoff=None):
     return operator
 
 
-def plane_wave_potential_v2(grid, spinless=False, e_cutoff=None,
-                            non_periodic=False, period_cutoff=None, verbose=False):
-    """Return the e-e potential operator in the plane wave basis. 
-       My version: take Fourier transform of dual basis potential.
-
-    Args:
-        grid (Grid): The discretization to use.
-        spinless (bool): Whether to use the spinless model or not.
-        e_cutoff (float): Energy cutoff.
-        non_periodic (bool): If the system is non-periodic, default to False.
-        period_cutoff (float): Period cutoff, default to
-            grid.volume_scale() ** (1. / grid.dimensions).
-        verbose (bool): Whether to turn on print statements.  
-
-    Returns:
-        operator (FermionOperator)
-    """
-    dual_basis_operator = dual_basis_potential(grid, spinless, non_periodic, period_cutoff)
-    operator = openfermion.utils.inverse_fourier_transform(dual_basis_operator, grid, spinless)
-    
-    normal_ordered_dual_basis_operator = openfermion.normal_ordered(dual_basis_operator)
-    normal_ordered_operator = openfermion.normal_ordered(operator)
-    
-    if verbose:
-        print('Fourier transform version.')
-        print('Dual basis potential Hamiltonian:')
-        print('qubits: {}'.format(openfermion.count_qubits(dual_basis_operator)))
-        print('qubits (normal ordered): {}'.format(openfermion.count_qubits(normal_ordered_dual_basis_operator)))
-        #print(normal_ordered_dual_basis_operator)
-        print()
-
-        print('Plane wave potential Hamiltonian:')
-        print('qubits: {}'.format(openfermion.count_qubits(operator)))
-        print('qubits (normal ordered): {}'.format(openfermion.count_qubits(normal_ordered_operator)))
-        #print(openfermion.normal_ordered(operator))
-        print()
-        
-    return operator
-
-
 def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                          non_periodic=False, period_cutoff=None,
                          fieldlines=3, R0=1e8, verbose=False):
@@ -141,12 +101,16 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
         fieldlines (int): Spatial dimension for electric field lines. 
-        R0 (float): Reference length scale where the 2D potential is zero.
+        R0 (float): Reference length scale where the 2D Coulomb potential 
+            is zero.
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
         operator (FermionOperator)
     """
+    if grid.dimensions == 1:
+        raise ValueError('System dimension cannot be 1.')
+        
     # Initialize.
     prefactor = 0.
     
@@ -218,7 +182,10 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
         elif grid.dimensions == 2:
             V_nu = 0.
             
+            # 2D Coulomb potential.
             if fieldlines == 2:
+                
+                # If non-periodic.
                 if non_periodic:
                     Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                     V_nu = (
@@ -230,7 +197,8 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                         print('non-periodic')
                         print('cutoff: {}\n'.format(period_cutoff))
                         print('RO = {}'.format(R0))
-                    
+                
+                # If periodic.
                 else:
                     var1 = 4. / momenta_squared
                     var2 = 0.25 * momenta_squared
@@ -240,8 +208,11 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                                        [[1.5], []], var1) -
                         mpmath.meijerg([[-0.5, 0., 0.], []], 
                                        [[-0.5, 0.], [-1.]], var2))
-
+            
+            # 3D Coulomb potential.
             elif fieldlines == 3:
+                
+                # If non-periodic.
                 if non_periodic:
                     var = -0.25 * period_cutoff**2 * momenta_squared
                     V_nu = numpy.complex128(
@@ -251,7 +222,8 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                     if verbose:
                         print('non-periodic')
                         print('cutoff: {}\n'.format(period_cutoff))
-                    
+                
+                # If periodic.
                 else:
                     V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
                 
@@ -286,13 +258,6 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                                          (orbital_c, 0), (orbital_d, 0))
                             operator += FermionOperator(operators, coefficient)
 
-    '''
-    normal_ordered_operator = openfermion.normal_ordered(operator)
-    print('Plane wave basis potential operator:')
-    print('qubits: {}\n'.format(openfermion.count_qubits(normal_ordered_operator)))
-    #print(operator)
-    print()
-    '''
     # Return.
     return operator
 
@@ -316,12 +281,16 @@ def dual_basis_jellium_model(grid, spinless=False,
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
         fieldlines (int): Spatial dimension for electric field lines.
-        R0 (float): Reference length scale where the 2D potential is zero.
+        R0 (float): Reference length scale where the 2D Coulomb potential 
+            is zero.
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
         operator (FermionOperator)
     """
+    if potential == True and grid.dimensions == 1:
+        raise ValueError('System dimension cannot be 1.')
+        
     # Initialize.
     n_points = grid.num_points
     position_prefactor = 0.
@@ -338,12 +307,6 @@ def dual_basis_jellium_model(grid, spinless=False,
     operator = FermionOperator()
     spins = [None] if spinless else [0, 1]
     
-    '''            
-    potential_og = potential
-    
-    if verbose:
-        print('Original potential = {}\n'.format(potential_og))
-    '''            
     
     if potential and non_periodic and period_cutoff is None:
         period_cutoff = grid.volume_scale() ** (1.0 / grid.dimensions)
@@ -397,29 +360,6 @@ def dual_basis_jellium_model(grid, spinless=False,
         coordinates_b = position_vectors[grid_indices_b]
         differences = coordinates_b - coordinates_origin
         
-        
-        # See paper Appendix E.2.
-        '''
-        # According to paper, in the dual basis the truncated Coulomb operator can be implemented by 
-        # dropping all n_p * n_q terms for which |r_p - r_q| > D.
-        
-        if non_periodic:
-            if verbose:
-                print('non_periodic')
-
-            if numpy.sqrt(differences.dot(differences)) > period_cutoff:
-                if verbose:
-                    print('e-e potential distances larger than cutoff.')
-                    print('coordinates b: {}'.format(coordinates_b))
-                    print('coordinates origin: {}'.format(coordinates_origin))
-                    print('differences: {}'.format(differences))
-                    print('Potential set to False.\n')
-                
-                # Set potential option to False. This drops the potential terms where |r_p - r_q| > D.
-                potential = False
-        '''
-        
-        
         # Compute coefficients.
         kinetic_coefficient = 0.
         potential_coefficient = 0.
@@ -457,6 +397,7 @@ def dual_basis_jellium_model(grid, spinless=False,
                     potential_coefficient_nu = (
                         position_prefactor * cos_difference / momenta_squared)
                     
+                    # If non-periodic.
                     if non_periodic:
                         correction = 1.0 - numpy.cos(
                                      period_cutoff * numpy.sqrt(momenta_squared))
@@ -471,8 +412,11 @@ def dual_basis_jellium_model(grid, spinless=False,
                 # 2D case.
                 elif grid.dimensions == 2:
                     V_nu = 0.
-
+                    
+                    # 2D Coulomb potential.
                     if fieldlines == 2:
+                        
+                        # If non-periodic.
                         if non_periodic:
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
@@ -485,6 +429,7 @@ def dual_basis_jellium_model(grid, spinless=False,
                                 print('cutoff: {}\n'.format(period_cutoff))
                                 print('RO = {}'.format(R0))
                         
+                        # If periodic.
                         else:
                             var1 = 4. / momenta_squared
                             var2 = 0.25 * momenta_squared
@@ -495,7 +440,10 @@ def dual_basis_jellium_model(grid, spinless=False,
                                 mpmath.meijerg([[-0.5, 0., 0.], []], 
                                                [[-0.5, 0.], [-1.]], var2))
                             
+                    # 3D Coulomb potential.
                     elif fieldlines == 3:
+                        
+                        # If non-periodic.
                         if non_periodic:
                             var = -0.25 * period_cutoff**2 * momenta_squared
                             V_nu = numpy.complex128(
@@ -506,6 +454,7 @@ def dual_basis_jellium_model(grid, spinless=False,
                                 print('non-periodic')
                                 print('cutoff: {}\n'.format(period_cutoff))
                         
+                        # If periodic.
                         else:    
                             V_nu = 2. * numpy.pi / numpy.sqrt(momenta_squared)
                             
@@ -555,10 +504,6 @@ def dual_basis_jellium_model(grid, spinless=False,
                     operators = ((orbital_a[spin], 1), (orbital_b[spin], 0))
                     operator += FermionOperator(operators, kinetic_coefficient)
                      
-            '''
-            # If non_periodic, potential will also evaluate to False, so this part is skipped,
-            # i.e. no potential terms will be added. 
-            '''            
             if potential:
                 for sa in spins:
                     for sb in spins:
@@ -570,13 +515,6 @@ def dual_basis_jellium_model(grid, spinless=False,
                         operator += FermionOperator(operators,
                                                     potential_coefficient)
         
-        '''            
-        # Reset potential.
-        potential = potential_og
-        
-        if non_periodic and verbose:
-            print('\nPotential reset to {}.\n'.format(potential))
-        '''            
         
     # Include the Madelung constant if requested.
     if include_constant:
@@ -586,13 +524,6 @@ def dual_basis_jellium_model(grid, spinless=False,
         operator += (FermionOperator.identity() *
                      (2.8372 / grid.volume_scale()**(1./grid.dimensions)))
     
-    '''
-    normal_ordered_operator = openfermion.normal_ordered(operator)
-    print('Dual basis jellium operator:')
-    print('qubits: {}\n'.format(openfermion.count_qubits(normal_ordered_operator)))
-    #print(operator)
-    print()
-    '''
     # Return.
     return operator
 
@@ -621,21 +552,18 @@ def dual_basis_potential(grid, spinless=False, non_periodic=False,
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
         fieldlines (int): Spatial dimension for electric field lines.
-        R0 (float): Reference length scale where the 2D potential is zero.
+        R0 (float): Reference length scale where the 2D Coulomb potential 
+            is zero.
         verbose (bool): Whether to turn on print statements.  
 
     Returns:
         operator (FermionOperator)
     """
+    if grid.dimensions == 1:
+        raise ValueError('System dimension cannot be 1.')
+        
     operator = dual_basis_jellium_model(grid, spinless, False, True, False,
                                     non_periodic, period_cutoff, fieldlines, R0, verbose)
-    
-    '''
-    normal_ordered_op = openfermion.normal_ordered(operator)
-    print('Dual basis potential:')
-    print('qubits: {}'.format(openfermion.count_qubits(normal_ordered_op)))
-    #print(normal_ordered_op)
-    '''
     
     return operator
 
@@ -643,7 +571,7 @@ def dual_basis_potential(grid, spinless=False, non_periodic=False,
 def jellium_model(grid, spinless=False, plane_wave=True,
                   include_constant=False, e_cutoff=None,
                   non_periodic=False, period_cutoff=None, 
-                  ft=False, fieldlines=3, R0=1e8, verbose=False):
+                  fieldlines=3, R0=1e8, verbose=False):
     """Return jellium Hamiltonian as FermionOperator class.
 
     Args:
@@ -658,25 +586,21 @@ def jellium_model(grid, spinless=False, plane_wave=True,
         non_periodic (bool): If the system is non-periodic, default to False.
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
-        ft (bool): Whether to use the Fourier Transform of the dual basis
-                   potentials as the plane wave potentials.
         fieldlines (int): Spatial dimension for electric field lines. 
-        R0 (float): Reference length scale where the 2D potential is zero.
+        R0 (float): Reference length scale where the 2D Coulomb potential 
+            is zero.
         verbose (bool): Whether to turn on print statements.
 
     Returns:
         FermionOperator: The Hamiltonian of the model.
     """
+    if grid.dimensions == 1:
+        raise ValueError('System dimension cannot be 1.')
+        
     if plane_wave:
         hamiltonian = plane_wave_kinetic(grid, spinless, e_cutoff)
-        
-        # Use FT of dual basis potential. 
-        if ft:
-            hamiltonian += plane_wave_potential_v2(
-                grid, spinless, e_cutoff, non_periodic, period_cutoff, verbose)
-        else:
-            hamiltonian += plane_wave_potential(
-                grid, spinless, e_cutoff, non_periodic, period_cutoff, fieldlines, R0, verbose)
+        hamiltonian += plane_wave_potential(
+            grid, spinless, e_cutoff, non_periodic, period_cutoff, fieldlines, R0, verbose)
     
     else:
         hamiltonian = dual_basis_jellium_model(
@@ -707,12 +631,16 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
         period_cutoff (float): Period cutoff, default to
             grid.volume_scale() ** (1. / grid.dimensions).
         fieldlines (int): Spatial dimension for electric field lines. 
-        R0 (float): Reference length scale where the 2D potential is zero.
+        R0 (float): Reference length scale where the 2D Coulomb potential 
+            is zero.
         verbose (bool): Whether to turn on print statements.
 
     Returns:
         hamiltonian (QubitOperator)
     """
+    if grid.dimensions == 1:
+        raise ValueError('System dimension cannot be 1.')
+        
     # Initialize.
     n_orbitals = grid.num_points
     volume = grid.volume_scale()
@@ -758,7 +686,8 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
             identity_coefficient_nu = (numpy.pi * float(n_orbitals) /
                                       (momenta_squared * volume))
             z_coefficient_nu = numpy.pi / (momenta_squared * volume)
-
+            
+            # If non-periodic.
             if non_periodic:
                 correction = 1.0 - numpy.cos(
                              period_cutoff * numpy.sqrt(momenta_squared))
@@ -773,8 +702,11 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
         # 2D case.
         elif grid.dimensions == 2:
             V_nu = 0.
-
+            
+            # 2D Coulomb potential.
             if fieldlines == 2:
+                
+                # If non-periodic.
                 if non_periodic:
                     Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                     V_nu = (
@@ -786,7 +718,8 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                         print('non-periodic')
                         print('cutoff: {}'.format(period_cutoff))
                         print('RO = {}'.format(R0))
-
+                
+                # If periodic.
                 else:
                     var1 = 4. / momenta_squared
                     var2 = 0.25 * momenta_squared
@@ -796,8 +729,11 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                                        [[1.5], []], var1) -
                         mpmath.meijerg([[-0.5, 0., 0.], []], 
                                        [[-0.5, 0.], [-1.]], var2))
-
+            
+            # 3D Coulomb potential.
             elif fieldlines == 3:
+                
+                # If non-periodic.
                 if non_periodic:
                     var = -0.25 * period_cutoff**2 * momenta_squared
                     V_nu = numpy.complex128(
@@ -807,7 +743,8 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                     if verbose:
                         print('non-periodic')
                         print('cutoff: {}'.format(period_cutoff))
-
+                
+                # If periodic.
                 else:
                     V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
 
@@ -881,6 +818,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                     zpzq_coefficient_nu = (zz_prefactor * cos_difference /
                                            momenta_squared)
                     
+                    # If non-periodic.
                     if non_periodic:
                         correction = 1.0 - numpy.cos(
                                      period_cutoff * numpy.sqrt(momenta_squared))
@@ -894,8 +832,11 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                 # 2D case.
                 elif grid.dimensions == 2:
                     V_nu = 0.
-        
+                    
+                    # 2D Coulomb potential.
                     if fieldlines == 2:
+                        
+                        # If non-periodic.
                         if non_periodic:
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
@@ -907,7 +848,8 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                                 print('non-periodic')
                                 print('cutoff: {}'.format(period_cutoff))
                                 print('RO = {}'.format(R0))
-
+                        
+                        # If periodic.
                         else:
                             var1 = 4. / momenta_squared
                             var2 = 0.25 * momenta_squared
@@ -918,7 +860,10 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                                 mpmath.meijerg([[-0.5, 0., 0.], []], 
                                                [[-0.5, 0.], [-1.]], var2))
                     
+                    # 3D Coulomb potential.
                     elif fieldlines == 3:
+                        
+                        # If non-periodic.
                         if non_periodic:
                             var = -0.25 * period_cutoff**2 * momenta_squared
                             V_nu = numpy.complex128(
@@ -928,7 +873,8 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                             if verbose:
                                 print('non-periodic')
                                 print('cutoff: {}'.format(period_cutoff))
-
+                        
+                        # If periodic.
                         else:
                             V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
                     

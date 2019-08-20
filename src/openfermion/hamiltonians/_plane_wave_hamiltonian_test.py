@@ -25,6 +25,10 @@ from openfermion.utils import (eigenspectrum, Grid, inverse_fourier_transform,
 class PlaneWaveHamiltonianTest(unittest.TestCase):
 
     def test_plane_wave_hamiltonian_integration(self):
+        '''
+        Key: Spatial dimension.
+        Value: List of geometries.
+        '''
         geometry_sets = {
                     2: [[('H', (0., 0.)), ('H', (0.8, 0.))], 
                         [('H', (0.1, 0.))]], 
@@ -68,11 +72,11 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                     self.assertAlmostEqual(min_diff, 0)
 
     def test_plane_wave_hamiltonian_default_to_jellium_with_no_geometry(self):
-        grid = Grid(dimensions=1, scale=1.0, length=4)
+        grid = Grid(dimensions=2, scale=1.0, length=2)
         self.assertTrue(plane_wave_hamiltonian(grid) == jellium_model(grid))
 
     def test_plane_wave_hamiltonian_bad_geometry(self):
-        grid = Grid(dimensions=1, scale=1.0, length=4)
+        grid = Grid(dimensions=2, scale=1.0, length=4)
         with self.assertRaises(ValueError):
             plane_wave_hamiltonian(grid, geometry=[('H', (0, 0, 0))])
 
@@ -85,8 +89,18 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             plane_wave_hamiltonian(grid, geometry=[('Unobtainium',
                                                     (0, 0, 0))])
-
+    
+    def test_plane_wave_hamiltonian_bad_dimension(self):
+        grid = Grid(dimensions=1, scale=1.0, length=2)
+        with self.assertRaises(ValueError):
+            plane_wave_hamiltonian(grid, geometry=[('H', (0,))])
+        
+        
     def test_jordan_wigner_dual_basis_hamiltonian(self):
+        '''
+        Key: Spatial dimension.
+        Value: List of geometries.
+        '''
         geometry_sets = {
                         2: [[('H', (0., 0.)), ('H', (0.8, 0.))], [('H', (0.1, 0.))]], 
                         3: [[('H', (0., 0., 0.)), ('H', (0., 0., 0.))], [('H', (0.5, 0.8, 0.))]]
@@ -115,7 +129,7 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                         jordan_wigner(jellium_model(grid, plane_wave=False)))
 
     def test_jordan_wigner_dual_basis_hamiltonian_bad_geometry(self):
-        grid = Grid(dimensions=1, scale=1.0, length=4)
+        grid = Grid(dimensions=2, scale=1.0, length=4)
         with self.assertRaises(ValueError):
             jordan_wigner_dual_basis_hamiltonian(
                 grid, geometry=[('H', (0, 0, 0))])
@@ -130,7 +144,16 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
             jordan_wigner_dual_basis_hamiltonian(
                 grid, geometry=[('Unobtainium', (0, 0, 0))])
 
+    def test_jordan_wigner_dual_basis_hamiltonian_bad_dimension(self):
+        grid = Grid(dimensions=1, scale=1.0, length=2)
+        with self.assertRaises(ValueError):
+            jordan_wigner_dual_basis_hamiltonian(grid, geometry=[('H', (0,))])
+
     def test_plane_wave_energy_cutoff(self):
+        '''
+        Key: Spatial dimension.
+        Value: List of geometries.
+        '''
         geometry_sets = {
                     2: [[('H', (0., 0.)), ('H', (0.8, 0.))], 
                         [('H', (0.1, 0.))]], 
@@ -164,6 +187,11 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
         # TODO: After figuring out the correct formula for period cutoff for
         #     dual basis, change period_cutoff to default, and change
         #     h_1 to also accept period_cutoff for real integration test.
+        
+        '''
+        Key: Spatial dimension.
+        Value: List of geometries.
+        '''
         geometry_sets = {
                     2: [[('H', (0., 0.)), ('H', (0.8, 0.))], 
                         [('H', (0.1, 0.))]], 
@@ -183,12 +211,12 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                     period_cutoff = grid.volume_scale() ** (1. / grid.dimensions)
 
                     h_1 = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True, include_constant=False,
-                                                 e_cutoff=None, ft=False, fieldlines=dim[1])
+                                                 e_cutoff=None, fieldlines=dim[1])
                     jw_1 = jordan_wigner(h_1)
                     spectrum_1 = eigenspectrum(jw_1)
 
                     h_2 = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True, include_constant=False, 
-                                                 e_cutoff=None, non_periodic=True, period_cutoff=period_cutoff, ft=False,
+                                                 e_cutoff=None, non_periodic=True, period_cutoff=period_cutoff,
                                                  fieldlines=dim[1])
                     jw_2 = jordan_wigner(h_2)
                     spectrum_2 = eigenspectrum(jw_2)
@@ -204,12 +232,12 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
                     momentum_hamiltonian = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=True,
                                                                   include_constant=False, e_cutoff=None, 
                                                                   non_periodic=True, period_cutoff=period_cutoff,
-                                                                  ft=False, fieldlines=dim[1])
+                                                                  fieldlines=dim[1])
 
                     position_hamiltonian = plane_wave_hamiltonian(grid, geometry, spinless=True, plane_wave=False, 
                                                                   include_constant=False, e_cutoff=None, 
                                                                   non_periodic=True, period_cutoff=period_cutoff,
-                                                                  ft=False, fieldlines=dim[1])
+                                                                  fieldlines=dim[1])
 
                     # Confirm they are Hermitian
                     momentum_hamiltonian_operator = (
@@ -234,6 +262,11 @@ class PlaneWaveHamiltonianTest(unittest.TestCase):
     def test_nonperiodic_external_potential_integration(self):
         # Compute potential energy operator in momentum and position space.
         # Non-periodic test.
+        
+        '''
+        Key: Spatial dimension.
+        Value: List of geometries.
+        '''
         geometry_sets = {
                     2: [[('H', (0., 0.)), ('H', (0.8, 0.))], 
                         [('H', (0.1, 0.))]], 

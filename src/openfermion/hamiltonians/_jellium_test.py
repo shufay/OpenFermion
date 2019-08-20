@@ -294,9 +294,14 @@ class JelliumTest(unittest.TestCase):
         
         # [[spatial dimension, fieldline dimension]].
         dims = [[2, 2], [2, 3], [3, 3]]
+        
+        # Reference length scale where the 2D Coulomb potential is zero.
         R0 = 1e8
         
         for dim in dims:
+            
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
             for length in range(2, 6 - dim[0]):
                 for non_periodic in non_periodics:
                     grid = Grid(dimensions=dim[0], length=length, scale=2.)
@@ -341,7 +346,8 @@ class JelliumTest(unittest.TestCase):
                                 potential_contribution = -(
                                     numpy.pi * float(n_qubits) / float(
                                     2. * momenta_squared * volume))
-
+                                
+                                # If non-periodic.
                                 if non_periodic:
                                     correction = 1.0 - numpy.cos(
                                                  period_cutoff * 
@@ -351,15 +357,19 @@ class JelliumTest(unittest.TestCase):
                             # 2D case.
                             elif grid.dimensions == 2:
                                 V_nu = 0.
-
+                                
+                                # 2D Coulomb potential.
                                 if fieldlines == 2:
+                                    
+                                    # If non-periodic.
                                     if non_periodic:
                                         Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                         V_nu = (
                                             4. * numpy.pi / momenta_squared * (
                                             Dkv * numpy.log(R0 / period_cutoff) * 
                                             scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
-
+                                    
+                                    # If periodic.
                                     else:
                                         var1 = 4. / momenta_squared
                                         var2 = 0.25 * momenta_squared
@@ -369,8 +379,11 @@ class JelliumTest(unittest.TestCase):
                                                            [[1.5], []], var1) -
                                             mpmath.meijerg([[-0.5, 0., 0.], []], 
                                                            [[-0.5, 0.], [-1.]], var2))
-
+                                
+                                # 3D Coulomb potential.
                                 elif fieldlines == 3:
+                                    
+                                    # If non-periodic.
                                     if non_periodic:
                                         var = (
                                             -0.25 * period_cutoff**2 * 
@@ -378,7 +391,7 @@ class JelliumTest(unittest.TestCase):
                                         V_nu = numpy.complex128(
                                             2 * numpy.pi * period_cutoff * 
                                             mpmath.hyp1f2(0.5, 1., 1.5, var))
-
+                                    # If periodic.        
                                     else:
                                         V_nu = (2 * numpy.pi / 
                                                 numpy.sqrt(momenta_squared))
@@ -388,7 +401,7 @@ class JelliumTest(unittest.TestCase):
 
                             paper_potential_coefficient += potential_contribution
 
-
+                    # Check if coefficients are equal.
                     self.assertAlmostEqual(
                         kinetic_coefficient, paper_kinetic_coefficient)
                     self.assertAlmostEqual(
@@ -415,7 +428,8 @@ class JelliumTest(unittest.TestCase):
                                 if grid.dimensions == 3:    
                                     potential_contribution = (
                                         numpy.pi / float(momenta_squared * volume))
-
+                                    
+                                    # If non-periodic.
                                     if non_periodic:
                                         correction = 1.0 - numpy.cos(
                                             period_cutoff * 
@@ -425,15 +439,19 @@ class JelliumTest(unittest.TestCase):
                                 # 2D case.
                                 elif grid.dimensions == 2:
                                     V_nu = 0.
-
+                                    
+                                    # 2D Coulomb potential.
                                     if fieldlines == 2:
+                                        
+                                        # If non-periodic.
                                         if non_periodic:
                                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                             V_nu = (
                                                 4. * numpy.pi / momenta_squared * (
                                                 Dkv * numpy.log(R0 / period_cutoff) * 
                                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
-
+                                        
+                                        # If periodic.
                                         else:
                                             var1 = 4. / momenta_squared
                                             var2 = 0.25 * momenta_squared
@@ -443,15 +461,19 @@ class JelliumTest(unittest.TestCase):
                                                                [[1.5], []], var1) -
                                                 mpmath.meijerg([[-0.5, 0., 0.], []], 
                                                                [[-0.5, 0.], [-1.]], var2))
-
+                                    
+                                    # 3D Coulomb potential.
                                     elif fieldlines == 3:
+                                        
+                                        # If non-periodic.
                                         if non_periodic:
                                             var = (-0.25 * period_cutoff**2 * 
                                                    momenta_squared)
                                             V_nu = numpy.complex128(
                                                 2 * numpy.pi * period_cutoff * 
                                                 mpmath.hyp1f2(0.5, 1., 1.5, var))
-
+                                        
+                                        # If periodic.
                                         else:
                                             V_nu = (2 * numpy.pi / 
                                                     numpy.sqrt(momenta_squared))
@@ -460,7 +482,8 @@ class JelliumTest(unittest.TestCase):
                                         1. / (4. * volume) * V_nu)
 
                                 paper_potential_coefficient += potential_contribution
-
+                        
+                        # Check if coefficients are equal.
                         self.assertAlmostEqual(
                             kinetic_coefficient, paper_kinetic_coefficient)
                         self.assertAlmostEqual(
@@ -507,7 +530,8 @@ class JelliumTest(unittest.TestCase):
                                                     numpy.pi * numpy.cos(
                                                     differences.dot(momenta)) / 
                                                     float(momenta_squared * volume))
-
+                                                
+                                                # If non-periodic.
                                                 if non_periodic:
                                                     correction = 1.0 - numpy.cos(
                                                         period_cutoff * 
@@ -517,8 +541,11 @@ class JelliumTest(unittest.TestCase):
                                             # 2D case.
                                             elif grid.dimensions == 2:
                                                 V_nu = 0.
-
+                                                
+                                                # 2D Coulomb potential.
                                                 if fieldlines == 2:
+                                                    
+                                                    # If non-periodic.
                                                     if non_periodic:
                                                         Dkv = (
                                                             period_cutoff * 
@@ -527,7 +554,8 @@ class JelliumTest(unittest.TestCase):
                                                             4. * numpy.pi / momenta_squared * (
                                                             Dkv * numpy.log(R0 / period_cutoff) * 
                                                             scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
-
+                                                    
+                                                    # If periodic.
                                                     else:
                                                         var1 = 4. / momenta_squared
                                                         var2 = 0.25 * momenta_squared
@@ -537,14 +565,18 @@ class JelliumTest(unittest.TestCase):
                                                                            [[1.5], []], var1) -
                                                             mpmath.meijerg([[-0.5, 0., 0.], []], 
                                                                            [[-0.5, 0.], [-1.]], var2))
-
+                                                
+                                                # 3D Coulomb potential.
                                                 elif fieldlines == 3:
+                                                    
+                                                    # If non-periodic.
                                                     if non_periodic:
                                                         var = -0.25 * period_cutoff**2 * momenta_squared
                                                         V_nu = numpy.complex128(
                                                             2 * numpy.pi * period_cutoff * 
                                                             mpmath.hyp1f2(0.5, 1., 1.5, var))
-
+                                                    
+                                                    # If periodic.
                                                     else:
                                                         V_nu = 2 * numpy.pi / numpy.sqrt(momenta_squared)
 
@@ -552,7 +584,8 @@ class JelliumTest(unittest.TestCase):
                                                     numpy.cos(differences.dot(momenta)) / (4. * volume) * V_nu)
 
                                             paper_potential_coefficient += potential_contribution
-
+                                    
+                                    # Check if coefficients are equal. 
                                     self.assertAlmostEqual(
                                         potential_coefficient, paper_potential_coefficient)
 
@@ -640,9 +673,6 @@ class JelliumTest(unittest.TestCase):
                 max_diff = numpy.amax(numpy.absolute(spectrum_1 - spectrum_2))
                 self.assertGreater(max_diff, 0.)
 
-        
-    ## My edits.
-
     def test_plane_wave_period_cutoff(self):
         # TODO: After figuring out the correct formula for period cutoff for
         #     dual basis, change period_cutoff to default, and change
@@ -653,6 +683,9 @@ class JelliumTest(unittest.TestCase):
         dims = [[2, 2], [2, 3], [3, 3]]
         
         for dim in dims:
+            
+            # If dim[0] == 2, get range(2, 4).
+            # If dim[0] == 3, get range(2, 3).
             for length in range(2, 6 - dim[0]):
                 grid = Grid(dimensions=dim[0], length=length, scale=1.0)
                 period_cutoff = grid.volume_scale() ** (1. / grid.dimensions)
@@ -675,10 +708,10 @@ class JelliumTest(unittest.TestCase):
                 # TODO: This is only for code coverage. Remove after having real
                 #     integration test.
                 momentum_hamiltonian = jellium_model(grid, spinless=spinless, plane_wave=True, include_constant=False, 
-                                                     e_cutoff=None, non_periodic=True, ft=False, period_cutoff=period_cutoff, 
+                                                     e_cutoff=None, non_periodic=True, period_cutoff=period_cutoff, 
                                                      fieldlines=dim[1])
                 position_hamiltonian = jellium_model(grid, spinless=spinless, plane_wave=False, include_constant=False, 
-                                                     e_cutoff=None, non_periodic=True, ft=False, period_cutoff=period_cutoff, 
+                                                     e_cutoff=None, non_periodic=True, period_cutoff=period_cutoff, 
                                                      fieldlines=dim[1])
 
                 # Confirm they are Hermitian
