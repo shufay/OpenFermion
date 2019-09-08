@@ -365,7 +365,7 @@ class JelliumTest(unittest.TestCase):
                                     if non_periodic:
                                         Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                         V_nu = (
-                                            4. * numpy.pi / momenta_squared * (
+                                            2. * numpy.pi / momenta_squared * (
                                             Dkv * numpy.log(R0 / period_cutoff) * 
                                             scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                                     
@@ -374,7 +374,7 @@ class JelliumTest(unittest.TestCase):
                                         var1 = 4. / momenta_squared
                                         var2 = 0.25 * momenta_squared
 
-                                        V_nu = numpy.complex128(
+                                        V_nu = 0.5 * numpy.complex128(
                                             mpmath.meijerg([[1., 1.5, 2.], []], 
                                                            [[1.5], []], var1) -
                                             mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -391,6 +391,7 @@ class JelliumTest(unittest.TestCase):
                                         V_nu = numpy.complex128(
                                             2 * numpy.pi * period_cutoff * 
                                             mpmath.hyp1f2(0.5, 1., 1.5, var))
+                                        
                                     # If periodic.        
                                     else:
                                         V_nu = (2 * numpy.pi / 
@@ -447,7 +448,7 @@ class JelliumTest(unittest.TestCase):
                                         if non_periodic:
                                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                                             V_nu = (
-                                                4. * numpy.pi / momenta_squared * (
+                                                2. * numpy.pi / momenta_squared * (
                                                 Dkv * numpy.log(R0 / period_cutoff) * 
                                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                                         
@@ -456,7 +457,7 @@ class JelliumTest(unittest.TestCase):
                                             var1 = 4. / momenta_squared
                                             var2 = 0.25 * momenta_squared
 
-                                            V_nu = numpy.complex128(
+                                            V_nu = 0.5 * numpy.complex128(
                                                 mpmath.meijerg([[1., 1.5, 2.], []], 
                                                                [[1.5], []], var1) -
                                                 mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -551,7 +552,7 @@ class JelliumTest(unittest.TestCase):
                                                             period_cutoff * 
                                                             numpy.sqrt(momenta_squared))
                                                         V_nu = (
-                                                            4. * numpy.pi / momenta_squared * (
+                                                            2. * numpy.pi / momenta_squared * (
                                                             Dkv * numpy.log(R0 / period_cutoff) * 
                                                             scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                                                     
@@ -560,7 +561,7 @@ class JelliumTest(unittest.TestCase):
                                                         var1 = 4. / momenta_squared
                                                         var2 = 0.25 * momenta_squared
 
-                                                        V_nu = numpy.complex128(
+                                                        V_nu = 0.5 * numpy.complex128(
                                                             mpmath.meijerg([[1., 1.5, 2.], []], 
                                                                            [[1.5], []], var1) -
                                                             mpmath.meijerg([[-0.5, 0., 0.], []], 

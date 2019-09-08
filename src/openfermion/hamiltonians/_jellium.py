@@ -189,7 +189,7 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                 if non_periodic:
                     Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                     V_nu = (
-                        4. * numpy.pi / momenta_squared * (
+                        2. * numpy.pi / momenta_squared * (
                         Dkv * numpy.log(R0 / period_cutoff) * 
                         scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                     
@@ -203,7 +203,7 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                     var1 = 4. / momenta_squared
                     var2 = 0.25 * momenta_squared
 
-                    V_nu = numpy.complex128(
+                    V_nu = 0.5 * numpy.complex128(
                         mpmath.meijerg([[1., 1.5, 2.], []], 
                                        [[1.5], []], var1) -
                         mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -420,7 +420,7 @@ def dual_basis_jellium_model(grid, spinless=False,
                         if non_periodic:
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
-                                4. * numpy.pi / momenta_squared * (
+                                2. * numpy.pi / momenta_squared * (
                                 Dkv * numpy.log(R0 / period_cutoff) * 
                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                             
@@ -434,7 +434,7 @@ def dual_basis_jellium_model(grid, spinless=False,
                             var1 = 4. / momenta_squared
                             var2 = 0.25 * momenta_squared
 
-                            V_nu = numpy.complex128(
+                            V_nu = 0.5 * numpy.complex128(
                                 mpmath.meijerg([[1., 1.5, 2.], []], 
                                                [[1.5], []], var1) -
                                 mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -710,7 +710,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                 if non_periodic:
                     Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                     V_nu = (
-                        4. * numpy.pi / momenta_squared * (
+                        2. * numpy.pi / momenta_squared * (
                         Dkv * numpy.log(R0 / period_cutoff) * 
                         scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                     
@@ -724,7 +724,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                     var1 = 4. / momenta_squared
                     var2 = 0.25 * momenta_squared
 
-                    V_nu = numpy.complex128(
+                    V_nu = 0.5 * numpy.complex128(
                         mpmath.meijerg([[1., 1.5, 2.], []], 
                                        [[1.5], []], var1) -
                         mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -840,7 +840,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                         if non_periodic:
                             Dkv = period_cutoff * numpy.sqrt(momenta_squared)
                             V_nu = (
-                                4. * numpy.pi / momenta_squared * (
+                                2. * numpy.pi / momenta_squared * (
                                 Dkv * numpy.log(R0 / period_cutoff) * 
                                 scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
                             
@@ -854,7 +854,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                             var1 = 4. / momenta_squared
                             var2 = 0.25 * momenta_squared
 
-                            V_nu = numpy.complex128(
+                            V_nu = 0.5 * numpy.complex128(
                                 mpmath.meijerg([[1., 1.5, 2.], []], 
                                                [[1.5], []], var1) -
                                 mpmath.meijerg([[-0.5, 0., 0.], []], 
