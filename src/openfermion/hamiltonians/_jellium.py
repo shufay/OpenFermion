@@ -108,6 +108,8 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
     Returns:
         operator (FermionOperator)
     """
+    print('MATHEMATICA 12')
+    
     if grid.dimensions == 1:
         raise ValueError('System dimension cannot be 1.')
         
@@ -187,11 +189,15 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                 
                 # If non-periodic.
                 if non_periodic:
-                    Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                    var = period_cutoff**2 * momenta_squared
                     V_nu = (
-                        4. * numpy.pi / momenta_squared * (
-                        Dkv * numpy.log(R0 / period_cutoff) * 
-                        scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
+                        numpy.pi / momenta_squared * (
+                        var * numpy.log(R0 / period_cutoff) * 
+                        scipy.special.hyp0f1(2., -0.25 * var) / 
+                        scipy.special.gamma(2.) -
+                        2. * scipy.special.hyp0f1(1., -0.25 * var) / 
+                        scipy.special.gamma(1.) + 
+                        2.))
                     
                     if verbose:
                         print('non-periodic')
@@ -203,7 +209,7 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                     var1 = 4. / momenta_squared
                     var2 = 0.25 * momenta_squared
 
-                    V_nu = numpy.complex128(
+                    V_nu = 0.5 * numpy.complex128(
                         mpmath.meijerg([[1., 1.5, 2.], []], 
                                        [[1.5], []], var1) -
                         mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -214,10 +220,13 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
                 
                 # If non-periodic.
                 if non_periodic:
-                    var = -0.25 * period_cutoff**2 * momenta_squared
-                    V_nu = numpy.complex128(
-                        2 * numpy.pi * period_cutoff * 
-                        mpmath.hyp1f2(0.5, 1., 1.5, var))
+                    Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                    V_nu = (
+                        numpy.pi * period_cutoff * (
+                        numpy.pi * scipy.special.jv(1., Dkv) * 
+                        scipy.special.struve(0., Dkv) + 
+                        scipy.special.jv(0., Dkv) * 
+                        (2. - numpy.pi * scipy.special.struve(1., Dkv))))
                     
                     if verbose:
                         print('non-periodic')
@@ -418,11 +427,15 @@ def dual_basis_jellium_model(grid, spinless=False,
                         
                         # If non-periodic.
                         if non_periodic:
-                            Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                            var = period_cutoff**2 * momenta_squared
                             V_nu = (
-                                4. * numpy.pi / momenta_squared * (
-                                Dkv * numpy.log(R0 / period_cutoff) * 
-                                scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
+                                numpy.pi / momenta_squared * (
+                                var * numpy.log(R0 / period_cutoff) * 
+                                scipy.special.hyp0f1(2., -0.25 * var) / 
+                                scipy.special.gamma(2.) -
+                                2. * scipy.special.hyp0f1(1., -0.25 * var) / 
+                                scipy.special.gamma(1.) + 
+                                2.))
                             
                             if verbose:
                                 print('non-periodic')
@@ -434,7 +447,7 @@ def dual_basis_jellium_model(grid, spinless=False,
                             var1 = 4. / momenta_squared
                             var2 = 0.25 * momenta_squared
 
-                            V_nu = numpy.complex128(
+                            V_nu = 0.5 * numpy.complex128(
                                 mpmath.meijerg([[1., 1.5, 2.], []], 
                                                [[1.5], []], var1) -
                                 mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -445,10 +458,13 @@ def dual_basis_jellium_model(grid, spinless=False,
                         
                         # If non-periodic.
                         if non_periodic:
-                            var = -0.25 * period_cutoff**2 * momenta_squared
-                            V_nu = numpy.complex128(
-                                2 * numpy.pi * period_cutoff * 
-                                mpmath.hyp1f2(0.5, 1., 1.5, var))
+                            Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                            V_nu = (
+                                numpy.pi * period_cutoff * (
+                                numpy.pi * scipy.special.jv(1., Dkv) * 
+                                scipy.special.struve(0., Dkv) + 
+                                scipy.special.jv(0., Dkv) * 
+                                (2. - numpy.pi * scipy.special.struve(1., Dkv))))
                             
                             if verbose:
                                 print('non-periodic')
@@ -708,11 +724,15 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                 
                 # If non-periodic.
                 if non_periodic:
-                    Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                    var = period_cutoff**2 * momenta_squared
                     V_nu = (
-                        4. * numpy.pi / momenta_squared * (
-                        Dkv * numpy.log(R0 / period_cutoff) * 
-                        scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
+                        numpy.pi / momenta_squared * (
+                        var * numpy.log(R0 / period_cutoff) * 
+                        scipy.special.hyp0f1(2., -0.25 * var) / 
+                        scipy.special.gamma(2.) -
+                        2. * scipy.special.hyp0f1(1., -0.25 * var) / 
+                        scipy.special.gamma(1.) + 
+                        2.))
                     
                     if verbose:
                         print('non-periodic')
@@ -724,7 +744,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                     var1 = 4. / momenta_squared
                     var2 = 0.25 * momenta_squared
 
-                    V_nu = numpy.complex128(
+                    V_nu = 0.5 * numpy.complex128(
                         mpmath.meijerg([[1., 1.5, 2.], []], 
                                        [[1.5], []], var1) -
                         mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -735,10 +755,13 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                 
                 # If non-periodic.
                 if non_periodic:
-                    var = -0.25 * period_cutoff**2 * momenta_squared
-                    V_nu = numpy.complex128(
-                        2 * numpy.pi * period_cutoff * 
-                        mpmath.hyp1f2(0.5, 1., 1.5, var))
+                    Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                    V_nu = (
+                        numpy.pi * period_cutoff * (
+                        numpy.pi * scipy.special.jv(1., Dkv) * 
+                        scipy.special.struve(0., Dkv) + 
+                        scipy.special.jv(0., Dkv) * 
+                        (2. - numpy.pi * scipy.special.struve(1., Dkv))))
                     
                     if verbose:
                         print('non-periodic')
@@ -838,11 +861,15 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                         
                         # If non-periodic.
                         if non_periodic:
-                            Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                            var = period_cutoff**2 * momenta_squared
                             V_nu = (
-                                4. * numpy.pi / momenta_squared * (
-                                Dkv * numpy.log(R0 / period_cutoff) * 
-                                scipy.special.jv(1, Dkv) - scipy.special.jv(0, Dkv)))
+                                numpy.pi / momenta_squared * (
+                                var * numpy.log(R0 / period_cutoff) * 
+                                scipy.special.hyp0f1(2., -0.25 * var) / 
+                                scipy.special.gamma(2.) -
+                                2. * scipy.special.hyp0f1(1., -0.25 * var) / 
+                                scipy.special.gamma(1.) + 
+                                2.))
                             
                             if verbose:
                                 print('non-periodic')
@@ -854,7 +881,7 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                             var1 = 4. / momenta_squared
                             var2 = 0.25 * momenta_squared
 
-                            V_nu = numpy.complex128(
+                            V_nu = 0.5 * numpy.complex128(
                                 mpmath.meijerg([[1., 1.5, 2.], []], 
                                                [[1.5], []], var1) -
                                 mpmath.meijerg([[-0.5, 0., 0.], []], 
@@ -865,10 +892,13 @@ def jordan_wigner_dual_basis_jellium(grid, spinless=False,
                         
                         # If non-periodic.
                         if non_periodic:
-                            var = -0.25 * period_cutoff**2 * momenta_squared
-                            V_nu = numpy.complex128(
-                                2 * numpy.pi * period_cutoff * 
-                                mpmath.hyp1f2(0.5, 1., 1.5, var))
+                            Dkv = period_cutoff * numpy.sqrt(momenta_squared)
+                            V_nu = (
+                                numpy.pi * period_cutoff * (
+                                numpy.pi * scipy.special.jv(1., Dkv) * 
+                                scipy.special.struve(0., Dkv) + 
+                                scipy.special.jv(0., Dkv) * 
+                                (2. - numpy.pi * scipy.special.struve(1., Dkv))))
                             
                             if verbose:
                                 print('non-periodic')
