@@ -108,6 +108,8 @@ def plane_wave_potential(grid, spinless=False, e_cutoff=None,
     Returns:
         operator (FermionOperator)
     """
+    print('MATHEMATICA 11')
+    
     if grid.dimensions == 1:
         raise ValueError('System dimension cannot be 1.')
         
